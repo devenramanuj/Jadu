@@ -3,25 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dev's Smart Reader</title>
+    <title>Dev's Smart Reader (Fixed)</title>
     <style>
-        body { margin: 0; background: #fdf6e3; color: #333; font-family: 'Georgia', serif; line-height: 1.8; transition: background 0.3s; }
+        body { margin: 0; background: #fdf6e3; color: #333; font-family: 'Georgia', serif; line-height: 1.8; padding-bottom: 50vh; }
         
-        /* Header */
-        header { position: fixed; top: 0; left: 0; width: 100%; background: #002b36; color: #eee; padding: 10px; z-index: 100; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        h2 { margin: 0; font-size: 18px; padding-left: 10px; }
+        /* હેડર */
+        header { position: fixed; top: 0; left: 0; width: 100%; background: #002b36; color: #eee; padding: 15px; z-index: 1000; display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        h2 { margin: 0; font-size: 16px; flex-grow: 1; }
         
-        /* Status Indicator */
-        #status-badge { background: #dc322f; color: white; padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; margin-right: 10px; transition: background 0.3s; }
+        /* સ્ટેટસ બેજ (નાનું લાઈટ) */
+        #status-indicator { width: 15px; height: 15px; border-radius: 50%; background: #ccc; margin-right: 15px; border: 2px solid #fff; }
+
+        /* કેમેરાને આપણે છુપાવી દઈશું પણ ચાલુ રાખીશું */
+        #cam-preview { 
+            position: fixed; top: 0; left: 0; 
+            width: 1px; height: 1px; 
+            opacity: 0; pointer-events: none; z-index: -1; 
+        }
         
-        /* Camera Preview (Small & Corner) */
-        #cam-preview { position: fixed; top: 60px; right: 10px; width: 80px; height: 60px; border-radius: 5px; opacity: 0.8; transform: scaleX(-1); border: 2px solid #002b36; z-index: 99; }
-        
-        /* Content Area */
+        /* લખાણ માટે જગ્યા */
         .content { margin-top: 80px; padding: 20px; max-width: 800px; margin-left: auto; margin-right: auto; }
-        .verse { background: #fff; padding: 20px; margin-bottom: 20px; border-left: 5px solid #b58900; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .verse-title { font-weight: bold; color: #b58900; margin-bottom: 5px; }
+        .verse { background: #fff; padding: 20px; margin-bottom: 20px; border-left: 5px solid #b58900; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 5px; }
+        .verse-title { font-weight: bold; color: #b58900; margin-bottom: 5px; font-size: 1.2em; }
         
+        .hint { text-align: center; color: #666; font-size: 0.9em; margin-bottom: 20px; background: #eee; padding: 5px; border-radius: 5px; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
@@ -29,16 +34,19 @@
 <body>
 
     <header>
+        <div id="status-indicator"></div>
         <h2>Smart Reader 📖</h2>
-        <div id="status-badge">OFFLINE</div>
     </header>
 
     <video id="cam-preview" playsinline></video>
 
     <div class="content">
-        <h1>શ્રીમદ ભગવદ ગીતા - અધ્યાય ૧</h1>
-        <p><i>(માથું સહેજ નીચે કરો તો આગળ વંચાશે, ઉપર કરો તો પાછળ જશે)</i></p>
-        
+        <div class="hint">
+            💡 <b>કેવી રીતે વાપરવું:</b><br>
+            ફોન સામે રાખો. માથું <b>નીચે</b> કરો તો લખાણ ઉપર જશે (Scroll Down).<br>
+            માથું <b>ઉપર</b> કરો તો લખાણ નીચે જશે (Scroll Up).
+        </div>
+
         <div class="verse">
             <div class="verse-title">શ્લોક ૧</div>
             <p>ધૃતરાષ્ટ્ર ઉવાચ |<br>
@@ -55,48 +63,43 @@
             <p>ભાવાર્થ: સંજય બોલ્યા: તે સમયે રાજા દુર્યોધને પાંડવોની સેનાને વ્યૂહરચનામાં ઊભેલી જોઈને દ્રોણાચાર્ય પાસે જઈને આ વચન કહ્યું.</p>
         </div>
 
-        <div class="verse"><div class="verse-title">નોંધ</div><p>આ એક ડેમો ટેક્સ્ટ છે જેથી તમે સ્ક્રોલિંગ ટેસ્ટ કરી શકો...</p></div>
-        <div class="verse"><div class="verse-title">ટેસ્ટ ૧</div><p>સ્ક્રોલિંગ ચકાસવા માટે વધુ લખાણ...</p></div>
-        <div class="verse"><div class="verse-title">ટેસ્ટ ૨</div><p>સ્ક્રોલિંગ ચકાસવા માટે વધુ લખાણ...</p></div>
-        <div class="verse"><div class="verse-title">ટેસ્ટ ૩</div><p>સ્ક્રોલિંગ ચકાસવા માટે વધુ લખાણ...</p></div>
-        <div class="verse"><div class="verse-title">ટેસ્ટ ૪</div><p>સ્ક્રોલિંગ ચકાસવા માટે વધુ લખાણ...</p></div>
-        <div class="verse"><div class="verse-title">ટેસ્ટ ૫</div><p>સ્ક્રોલિંગ ચકાસવા માટે વધુ લખાણ...</p></div>
-        <div class="verse"><div class="verse-title">ટેસ્ટ ૬</div><p>સ્ક્રોલિંગ ચકાસવા માટે વધુ લખાણ...</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૩</div><p>પશ્યૈતાં પાણ્ડુપુત્રાણામાચાર્ય મહતીં ચમૂમ્ |<br>વ્યૂઢાં દ્રુપદપુત્રેણ તવ શિષ્યેણ ધીમતા ||3||</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૪</div><p>અત્ર શૂરા મહેષ્વાસા ભીમાર્જુનસમા યુધિ |<br>યુયુધાનો વિરાટશ્ચ દ્રુપદશ્ચ મહારથઃ ||4||</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૫</div><p>ધૃષ્ટકેતુશ્ચેકિતાનઃ કાશીરાજશ્ચ વીર્યવાન્ |<br>પુરુજિત્કુંતિભોજશ્ચ શૈબ્યશ્ચ નરપુઙ્ગવઃ ||5||</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૬</div><p>યુધામન્યુશ્ચ વિક્રાન્ત ઉત્તમૌજાશ્ચ વીર્યવાન્ |<br>સૌભદ્રો દ્રૌપદેયાશ્ચ સર્વ એવ મહારથાઃ ||6||</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૭</div><p>અસ્માકં તુ વિશિષ્ટા યે તાન્નિબોધ દ્વિજોત્તમ |<br>નાયકા મમ સૈન્યસ્ય સંજ્ઞાર્થં તાન્બ્રવીમિ તે ||7||</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૮</div><p>ભવાનભીષ્મશ્ચ કર્ણશ્ચ કૃપશ્ચ સમિતિઞ્જયઃ |<br>અશ્વત્થામા વિકર્ણશ્ચ સૌમદત્તિસ્તથૈવ ચ ||8||</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૯</div><p>અન્યે ચ બહવઃ શૂરા મદર્થે ત્યક્તજીવિતાઃ |<br>નાનાશસ્ત્રપ્રહરણાઃ સર્વે યુદ્ધવિશારદાઃ ||9||</p></div>
+        
+        <p style="text-align:center; color:#999;">-- અધ્યાય સમાપ્ત --</p>
     </div>
 
     <script>
         const videoElement = document.getElementById('cam-preview');
-        const statusBadge = document.getElementById('status-badge');
-        let isScrolling = false;
-
+        const indicator = document.getElementById('status-indicator');
+        
         function onResults(results) {
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
                 const landmarks = results.multiFaceLandmarks[0];
                 
-                // Nose Tip (1)
+                // Nose Tip (ID 1)
                 const noseTip = landmarks[1];
                 const y = noseTip.y;
 
-                // Thresholds (તમારા ચહેરા મુજબ એડજસ્ટ કરી શકાય)
-                // Center ~ 0.5
-                
-                if (y > 0.65) { // Head Down
-                    statusBadge.innerText = "SCROLL DOWN ▼";
-                    statusBadge.style.background = "#2aa198"; // Cyan/Green
-                    window.scrollBy({ top: 10, behavior: 'smooth' }); // Smooth scroll
+                // Thresholds
+                if (y > 0.60) { // Head Down -> Scroll Down
+                    indicator.style.background = "#00ff00"; // Green Light
+                    window.scrollBy({ top: 15, behavior: 'smooth' }); 
                 } 
-                else if (y < 0.45) { // Head Up
-                    statusBadge.innerText = "SCROLL UP ▲";
-                    statusBadge.style.background = "#268bd2"; // Blue
-                    window.scrollBy({ top: -10, behavior: 'smooth' });
+                else if (y < 0.40) { // Head Up -> Scroll Up
+                    indicator.style.background = "#00ccff"; // Blue Light
+                    window.scrollBy({ top: -15, behavior: 'smooth' });
                 } 
                 else {
-                    statusBadge.innerText = "READING MODE";
-                    statusBadge.style.background = "#859900"; // Green
+                    indicator.style.background = "#ffff00"; // Yellow (Standby)
                 }
             } else {
-                statusBadge.innerText = "NO FACE DETECTED";
-                statusBadge.style.background = "#dc322f"; // Red
+                indicator.style.background = "#ff0000"; // Red (No Face)
             }
         }
 
