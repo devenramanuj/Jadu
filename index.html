@@ -3,117 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dev's Reality Eraser Miracle</title>
+    <title>Dev's Real Miracle</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        body { margin: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
         
-        /* કન્ટેનર જ્યાં બધું એકબીજા પર ગોઠવાશે */
         #canvas-container {
             position: relative;
             width: 640px; height: 480px;
-            border: 3px solid #00d2ff;
-            box-shadow: 0 0 30px #00d2ff;
-            border-radius: 10px; overflow: hidden;
+            border: 4px solid #fff;
+            box-shadow: 0 0 50px #fff;
+            border-radius: 15px; overflow: hidden;
         }
 
-        /* લેયર 1: છુપાયેલી દુનિયા (સૌથી નીચે) */
-        #hidden-reality {
+        /* 1. પાછળની દુનિયા (Galaxy) */
+        #hidden-world {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            /* અહીં એક સરસ ગેલેક્સીનો ફોટો મૂક્યો છે */
-            background: url('https://images.unsplash.com/photo-1462331940025-496dfa712568?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80') no-repeat center center;
+            background: url('https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80') no-repeat center center;
             background-size: cover;
             z-index: 1;
         }
 
-        /* લેયર 2: જેના પર આપણે ડ્રો કરીશું (માસ્ક) */
-        #drawing-canvas {
+        /* 2. તમારી દુનિયા (Video Canvas) */
+        #main-canvas {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 2; transform: scaleX(-1); /* મિરર ઈફેક્ટ માટે */
+            z-index: 2; transform: scaleX(-1); /* Mirror Effect */
         }
 
-        /* કેમેરા (છુપાયેલો) */
         #webcam { display: none; }
         
-        #loading { position: absolute; color: #00d2ff; font-family: sans-serif; z-index: 10; text-shadow: 0 0 10px #00d2ff;}
+        .instruction {
+            position: absolute; bottom: 20px; color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 20px;
+            pointer-events: none; z-index: 10;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
-    <div id="loading">Preparing Miracle... (Wait 10s)</div>
-
     <div id="canvas-container">
-        <div id="hidden-reality"></div>
-        <canvas id="drawing-canvas"></canvas>
+        <div id="hidden-world"></div>
+        <canvas id="main-canvas"></canvas>
     </div>
-
+    
+    <div class="instruction">☝️ આંગળી ફેરવીને વાસ્તવિકતા ભૂંસી નાખો!</div>
     <video id="webcam" playsinline></video>
 
     <script>
         const videoElement = document.getElementById('webcam');
-        const canvas = document.getElementById('drawing-canvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        const loading = document.getElementById('loading');
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // આ એક "છુપાયેલું" કેન્વાસ છે જે તમારા રબરનો રસ્તો યાદ રાખશે
+        const maskCanvas = document.createElement('canvas');
+        const maskCtx = maskCanvas.getContext('2d');
 
         canvas.width = 640;
         canvas.height = 480;
-
-        let fingerX = null, fingerY = null;
+        maskCanvas.width = 640;
+        maskCanvas.height = 480;
 
         function onResults(results) {
-            loading.style.display = 'none';
-
-            // 1. પહેલા આખો કેમેરા ફીડ દોરો (સામાન્ય રીતે)
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-
-            // 2. જો આંગળી દેખાય...
+            // 1. માસ્ક કેન્વાસ પર આંગળી ડ્રો કરો (યાદશક્તિ)
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const landmarks = results.multiHandLandmarks[0];
-                // Index Finger Tip (8)
                 const indexTip = landmarks[8];
                 
-                // કો-ઓર્ડિનેટ્સ
                 const x = indexTip.x * canvas.width;
                 const y = indexTip.y * canvas.height;
 
-                // 3. ચમત્કારિક ભાગ: "ભૂંસવાનું" સેટિંગ
-                // 'destination-out' મતલબ: જ્યાં ડ્રો કરશો ત્યાં પારદર્શક બની જશે
-                ctx.globalCompositeOperation = 'destination-out';
-
-                // આંગળીની જગ્યાએ મોટું વર્તુળ દોરો (જે ભૂંસી નાખશે)
-                ctx.beginPath();
-                ctx.arc(x, y, 40, 0, 2 * Math.PI); // 40 એ બ્રશની સાઈઝ છે
-                ctx.fillStyle = "rgba(0,0,0,1)";
-                ctx.fill();
-                
-                // જો તમારે લીટો દોરવો હોય (Eraser Trail) તો આ કોમેન્ટ ખોલો:
-                /*
-                if (fingerX !== null) {
-                    ctx.beginPath();
-                    ctx.moveTo(fingerX, fingerY);
-                    ctx.lineTo(x, y);
-                    ctx.lineWidth = 80;
-                    ctx.lineCap = 'round';
-                    ctx.stroke();
-                }
-                fingerX = x; fingerY = y;
-                */
-            } else {
-                fingerX = null; fingerY = null;
+                // માસ્ક પર સફેદ રંગથી લીટા કરો
+                maskCtx.beginPath();
+                maskCtx.arc(x, y, 30, 0, 2 * Math.PI); // 30 સાઈઝનું બ્રશ
+                maskCtx.fillStyle = "white";
+                maskCtx.fill();
             }
-            // નોંધ: આ કોડમાં આપણે દર ફ્રેમમાં કેન્વાસ ક્લીયર નથી કરતા, 
-            // જેથી "ભૂંસાયેલો" ભાગ એમ ને એમ રહે.
+
+            // 2. હવે મુખ્ય કેન્વાસ પર જાદુ કરીએ
+            
+            // A. પહેલા આખો વિડીયો દોરો
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+            // B. હવે માસ્કનો ઉપયોગ કરીને વિડીયોમાં કાણાં પાડો
+            // 'destination-out' એટલે: જયાં માસ્ક છે, ત્યાંથી વિડીયો ગાયબ થઈ જશે
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.drawImage(maskCanvas, 0, 0);
+
+            // C. નોર્મલ મોડ પર પાછા આવી જાઓ
+            ctx.globalCompositeOperation = 'source-over';
         }
 
         const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        
         hands.setOptions({
             maxNumHands: 1,
             modelComplexity: 1,
             minDetectionConfidence: 0.7,
             minTrackingConfidence: 0.7
         });
+
         hands.onResults(onResults);
 
         const camera = new Camera(videoElement, {
