@@ -3,103 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dev's Smart Reader (Fixed)</title>
+    <title>Dev's Smart Reader Pro</title>
     <style>
         body { margin: 0; background: #fdf6e3; color: #333; font-family: 'Georgia', serif; line-height: 1.8; padding-bottom: 50vh; }
         
-        /* હેડર */
-        header { position: fixed; top: 0; left: 0; width: 100%; background: #002b36; color: #eee; padding: 15px; z-index: 1000; display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        h2 { margin: 0; font-size: 16px; flex-grow: 1; }
-        
-        /* સ્ટેટસ બેજ (નાનું લાઈટ) */
-        #status-indicator { width: 15px; height: 15px; border-radius: 50%; background: #ccc; margin-right: 15px; border: 2px solid #fff; }
-
-        /* કેમેરાને આપણે છુપાવી દઈશું પણ ચાલુ રાખીશું */
-        #cam-preview { 
-            position: fixed; top: 0; left: 0; 
-            width: 1px; height: 1px; 
-            opacity: 0; pointer-events: none; z-index: -1; 
+        /* સેટિંગ પેનલ */
+        #control-panel {
+            position: fixed; top: 0; left: 0; width: 100%; 
+            background: rgba(0, 0, 0, 0.9); color: #0f0; 
+            padding: 10px; z-index: 2000; font-family: monospace; font-size: 12px;
+            display: flex; flex-direction: column; gap: 5px;
         }
+
+        .row { display: flex; justify-content: space-between; align-items: center; }
+        button { padding: 5px 10px; background: #333; color: white; border: 1px solid #555; }
         
-        /* લખાણ માટે જગ્યા */
-        .content { margin-top: 80px; padding: 20px; max-width: 800px; margin-left: auto; margin-right: auto; }
-        .verse { background: #fff; padding: 20px; margin-bottom: 20px; border-left: 5px solid #b58900; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 5px; }
-        .verse-title { font-weight: bold; color: #b58900; margin-bottom: 5px; font-size: 1.2em; }
+        /* વિઝ્યુઅલ બાર */
+        #bar-container { width: 100%; height: 10px; background: #333; margin-top: 5px; position: relative; }
+        #nose-marker { width: 4px; height: 100%; background: #0f0; position: absolute; left: 50%; transition: left 0.1s; }
+        #zone-neutral { position: absolute; left: 40%; width: 20%; height: 100%; background: rgba(255, 255, 255, 0.2); }
+
+        .content { margin-top: 120px; padding: 20px; }
+        .verse { background: #fff; padding: 20px; margin-bottom: 20px; border-left: 5px solid #b58900; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .verse-title { font-weight: bold; color: #b58900; }
         
-        .hint { text-align: center; color: #666; font-size: 0.9em; margin-bottom: 20px; background: #eee; padding: 5px; border-radius: 5px; }
+        #cam-preview { position: fixed; bottom: 0; right: 0; width: 80px; opacity: 0.5; pointer-events: none; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
-    <header>
-        <div id="status-indicator"></div>
-        <h2>Smart Reader 📖</h2>
-    </header>
+    <div id="control-panel">
+        <div class="row">
+            <span>STATUS: <b id="status-text">WAITING...</b></span>
+            <span>Y: <b id="y-val">0.00</b></span>
+        </div>
+        <div class="row">
+            <label><input type="checkbox" id="invert-check"> ઊંધું કરો (Reverse)</label>
+            <button onclick="window.scrollTo(0,0)">Top</button>
+        </div>
+        <div id="bar-container">
+            <div id="zone-neutral"></div>
+            <div id="nose-marker"></div>
+        </div>
+    </div>
 
     <video id="cam-preview" playsinline></video>
 
     <div class="content">
-        <div class="hint">
-            💡 <b>કેવી રીતે વાપરવું:</b><br>
-            ફોન સામે રાખો. માથું <b>નીચે</b> કરો તો લખાણ ઉપર જશે (Scroll Down).<br>
-            માથું <b>ઉપર</b> કરો તો લખાણ નીચે જશે (Scroll Up).
-        </div>
+        <h2 style="text-align:center;">શ્રીમદ ભગવદ ગીતા (Calibration Mode)</h2>
+        <p style="text-align:center; color: #666; font-size: 0.9em;">
+            ઉપરની લીલી લીટી જુઓ.<br>
+            વચ્ચેના બોક્સમાં હોય તો સ્ક્રોલ બંધ રહેશે.<br>
+            બોક્સની બહાર જાય તો સ્ક્રોલ થશે.
+        </p>
 
-        <div class="verse">
-            <div class="verse-title">શ્લોક ૧</div>
-            <p>ધૃતરાષ્ટ્ર ઉવાચ |<br>
-            ધર્મક્ષેત્રે કુરુક્ષેત્રે સમવેતા યુયુત્સવઃ |<br>
-            મામકાઃ પાણ્ડવાશ્ચૈવ કિમકુર્વત સઞ્જય ||1||</p>
-            <p>ભાવાર્થ: ધૃતરાષ્ટ્ર બોલ્યા: હે સંજય! ધર્મભૂમિ કુરુક્ષેત્રમાં એકઠા થયેલા યુદ્ધની ઈચ્છાવાળા મારા અને પાંડુના પુત્રોએ શું કર્યું?</p>
-        </div>
-
-        <div class="verse">
-            <div class="verse-title">શ્લોક ૨</div>
-            <p>સઞ્જય ઉવાચ |<br>
-            દૃષ્ટ્વા તુ પાણ્ડવાનીકં વ્યૂઢં દુર્યોધનસ્તદા |<br>
-            આચાર્યમુપસઙ્ગમ્ય રાજા વચનમબ્રવીત ||2||</p>
-            <p>ભાવાર્થ: સંજય બોલ્યા: તે સમયે રાજા દુર્યોધને પાંડવોની સેનાને વ્યૂહરચનામાં ઊભેલી જોઈને દ્રોણાચાર્ય પાસે જઈને આ વચન કહ્યું.</p>
-        </div>
-
-        <div class="verse"><div class="verse-title">શ્લોક ૩</div><p>પશ્યૈતાં પાણ્ડુપુત્રાણામાચાર્ય મહતીં ચમૂમ્ |<br>વ્યૂઢાં દ્રુપદપુત્રેણ તવ શિષ્યેણ ધીમતા ||3||</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૪</div><p>અત્ર શૂરા મહેષ્વાસા ભીમાર્જુનસમા યુધિ |<br>યુયુધાનો વિરાટશ્ચ દ્રુપદશ્ચ મહારથઃ ||4||</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૫</div><p>ધૃષ્ટકેતુશ્ચેકિતાનઃ કાશીરાજશ્ચ વીર્યવાન્ |<br>પુરુજિત્કુંતિભોજશ્ચ શૈબ્યશ્ચ નરપુઙ્ગવઃ ||5||</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૬</div><p>યુધામન્યુશ્ચ વિક્રાન્ત ઉત્તમૌજાશ્ચ વીર્યવાન્ |<br>સૌભદ્રો દ્રૌપદેયાશ્ચ સર્વ એવ મહારથાઃ ||6||</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૭</div><p>અસ્માકં તુ વિશિષ્ટા યે તાન્નિબોધ દ્વિજોત્તમ |<br>નાયકા મમ સૈન્યસ્ય સંજ્ઞાર્થં તાન્બ્રવીમિ તે ||7||</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૮</div><p>ભવાનભીષ્મશ્ચ કર્ણશ્ચ કૃપશ્ચ સમિતિઞ્જયઃ |<br>અશ્વત્થામા વિકર્ણશ્ચ સૌમદત્તિસ્તથૈવ ચ ||8||</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૯</div><p>અન્યે ચ બહવઃ શૂરા મદર્થે ત્યક્તજીવિતાઃ |<br>નાનાશસ્ત્રપ્રહરણાઃ સર્વે યુદ્ધવિશારદાઃ ||9||</p></div>
-        
-        <p style="text-align:center; color:#999;">-- અધ્યાય સમાપ્ત --</p>
+        <div class="verse"><div class="verse-title">શ્લોક ૧</div><p>ધૃતરાષ્ટ્ર ઉવાચ | ધર્મક્ષેત્રે કુરુક્ષેત્રે સમવેતા યુયુત્સવઃ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૨</div><p>સઞ્જય ઉવાચ | દૃષ્ટ્વા તુ પાણ્ડવાનીકં વ્યૂઢં દુર્યોધનસ્તદા |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૩</div><p>પશ્યૈતાં પાણ્ડુપુત્રાણામાચાર્ય મહતીં ચમૂમ્ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૪</div><p>અત્ર શૂરા મહેષ્વાસા ભીમાર્જુનસમા યુધિ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૫</div><p>ધૃષ્ટકેતુશ્ચેકિતાનઃ કાશીરાજશ્ચ વીર્યવાન્ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૬</div><p>યુધામન્યુશ્ચ વિક્રાન્ત ઉત્તમૌજાશ્ચ વીર્યવાન્ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૭</div><p>અસ્માકં તુ વિશિષ્ટા યે તાન્નિબોધ દ્વિજોત્તમ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૮</div><p>ભવાનભીષ્મશ્ચ કર્ણશ્ચ કૃપશ્ચ સમિતિઞ્જયઃ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૯</div><p>અન્યે ચ બહવઃ શૂરા મદર્થે ત્યક્તજીવિતાઃ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૧૦</div><p>અપર્યાપ્તં તદસ્માકં બલં ભીષ્માભિરક્ષિતમ્ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૧૧</div><p>અયનેષુ ચ સર્વેષુ યથાભાગમવસ્થિતાઃ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૧૨</div><p>તસ્ય સઞ્જનયન્હર્ષં કુરુવૃદ્ધઃ પિતામહઃ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૧૩</div><p>તતઃ શઙ્ખાશ્ચ ભેર્યશ્ચ પણવાનકગોમુખાઃ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૧૪</div><p>તતઃ શ્વેતૈર્હયૈર્યુક્તે મહતિ સ્યન્દને સ્થિતૌ |</p></div>
+        <div class="verse"><div class="verse-title">શ્લોક ૧૫</div><p>પાઞ્ચજન્યં હૃષીકેશો દેવદત્તં ધનઞ્જયઃ |</p></div>
     </div>
 
     <script>
         const videoElement = document.getElementById('cam-preview');
-        const indicator = document.getElementById('status-indicator');
-        
+        const statusText = document.getElementById('status-text');
+        const yValText = document.getElementById('y-val');
+        const noseMarker = document.getElementById('nose-marker');
+        const invertCheck = document.getElementById('invert-check');
+
         function onResults(results) {
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
                 const landmarks = results.multiFaceLandmarks[0];
-                
-                // Nose Tip (ID 1)
                 const noseTip = landmarks[1];
-                const y = noseTip.y;
+                let y = noseTip.y; // 0 (Top) to 1 (Bottom)
 
-                // Thresholds
-                if (y > 0.60) { // Head Down -> Scroll Down
-                    indicator.style.background = "#00ff00"; // Green Light
-                    window.scrollBy({ top: 15, behavior: 'smooth' }); 
+                // Update Debug UI
+                yValText.innerText = y.toFixed(2);
+                noseMarker.style.left = (y * 100) + "%";
+
+                let speed = 10;
+                let scrollAmount = 0;
+
+                // Logic: Center area is 0.40 to 0.60
+                if (y > 0.60) { 
+                    statusText.innerText = "DOWN ▼";
+                    statusText.style.color = "cyan";
+                    scrollAmount = speed; // Default Scroll Down
                 } 
-                else if (y < 0.40) { // Head Up -> Scroll Up
-                    indicator.style.background = "#00ccff"; // Blue Light
-                    window.scrollBy({ top: -15, behavior: 'smooth' });
+                else if (y < 0.40) { 
+                    statusText.innerText = "UP ▲";
+                    statusText.style.color = "orange";
+                    scrollAmount = -speed; // Default Scroll Up
                 } 
                 else {
-                    indicator.style.background = "#ffff00"; // Yellow (Standby)
+                    statusText.innerText = "NEUTRAL";
+                    statusText.style.color = "lime";
+                    scrollAmount = 0;
                 }
+
+                // If Invert checkbox is checked, flip the direction
+                if (invertCheck.checked) {
+                    scrollAmount = -scrollAmount;
+                }
+
+                if (scrollAmount !== 0) {
+                    window.scrollBy({ top: scrollAmount, behavior: 'smooth' });
+                }
+
             } else {
-                indicator.style.background = "#ff0000"; // Red (No Face)
+                statusText.innerText = "NO FACE";
+                statusText.style.color = "red";
             }
         }
 
