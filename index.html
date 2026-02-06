@@ -3,42 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dev's Digital Mentalist</title>
+    <title>Next Level Mentalist</title>
     <style>
-        body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
-        h2 { text-align: center; margin-top: 10px; }
+        body { margin: 0; background: #0f0c29; color: white; font-family: sans-serif; overflow: hidden; }
+        h2 { text-align: center; margin-top: 10px; color: #00d2ff; text-shadow: 0 0 10px #00d2ff; }
         
-        /* કેમેરાને આપણે છુપાવી દઈશું અથવા નાનો રાખીશું */
-        #webcam { position: absolute; top: 0; left: 0; width: 100px; opacity: 0.5; z-index: 10; transform: scaleX(-1); }
+        #webcam { position: absolute; top: 0; left: 0; width: 100px; opacity: 0.3; transform: scaleX(-1); }
         
-        /* જાદુઈ કર્સર */
+        /* સ્માર્ટ કર્સર */
         #magicCursor {
-            position: absolute; width: 20px; height: 20px;
-            background: red; border-radius: 50%;
-            box-shadow: 0 0 10px red; pointer-events: none;
-            display: none; z-index: 100;
+            position: absolute; width: 25px; height: 25px;
+            border: 3px solid #00d2ff; border-radius: 50%;
+            pointer-events: none; display: none; z-index: 100;
+            transition: background 0.1s, transform 0.1s;
+            transform: translate(-50%, -50%);
         }
 
-        /* કાર્ડ કન્ટેનર */
+        /* જ્યારે પિંચ કરો ત્યારે કર્સર આવું થશે */
+        #magicCursor.clicking {
+            background: #00d2ff;
+            transform: translate(-50%, -50%) scale(0.8);
+        }
+
         .card-container {
             display: flex; justify-content: center; align-items: center;
             height: 80vh; gap: 20px;
         }
 
-        /* કાર્ડની ડિઝાઈન */
         .card {
-            width: 90px; height: 140px;
-            background: linear-gradient(135deg, #444, #222);
-            border: 2px solid gold; border-radius: 10px;
+            width: 100px; height: 160px;
+            background: linear-gradient(135deg, #2b2b2b, #000);
+            border: 2px solid #555; border-radius: 12px;
             display: flex; justify-content: center; align-items: center;
-            font-size: 40px; cursor: pointer;
-            transition: transform 0.3s;
+            font-size: 50px; 
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            transition: transform 0.3s, border-color 0.3s;
         }
 
-        .card.revealed { background: white; border-color: red; transform: scale(1.1); }
-        .card span { display: none; }
+        /* જે સિલેક્ટ થાય એ કાર્ડ ગ્લો થશે */
+        .card.active { border-color: #00d2ff; transform: scale(1.1); box-shadow: 0 0 25px #00d2ff; }
+        .card span { display: none; filter: drop-shadow(0 0 5px white); }
+        .card.revealed { background: white; }
         .card.revealed span { display: block; }
 
+        .instruction {
+            position: absolute; bottom: 20px; width: 100%; text-align: center;
+            color: gray; font-size: 14px;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -46,63 +57,87 @@
 </head>
 <body>
 
-    <h2>Digital Mentalist 🔮</h2>
-    <p style="text-align:center; font-size:12px;">હવામાં આંગળી ચીંધો અને કાર્ડ પસંદ કરો!</p>
-
+    <h2>Gesture Master 🤏</h2>
+    
     <video id="webcam" playsinline></video>
-
     <div id="magicCursor"></div>
 
     <div class="card-container">
-        <div class="card" id="card1"><span>🍎</span></div>
-        <div class="card" id="card2"><span>👑</span></div>
-        <div class="card" id="card3"><span>🚀</span></div>
+        <div class="card" id="c1"><span>🕉️</span></div>
+        <div class="card" id="c2"><span>⚛️</span></div>
+        <div class="card" id="c3"><span>☯️</span></div>
     </div>
+
+    <div class="instruction">કાર્ડ પર આંગળી લાવો અને પસંદ કરવા માટે <b>ચપટી (Pinch)</b> વગાડો 👌</div>
 
     <script>
         const videoElement = document.getElementById('webcam');
         const cursor = document.getElementById('magicCursor');
-        const cards = [document.getElementById('card1'), document.getElementById('card2'), document.getElementById('card3')];
-
-        // કાર્ડ પર હોવર કરવાની અસર
-        function checkCollision(x, y) {
-            cursor.style.left = x + "px";
-            cursor.style.top = y + "px";
-            cursor.style.display = "block";
-
-            cards.forEach(card => {
-                const rect = card.getBoundingClientRect();
-                // જો કર્સર કાર્ડની અંદર હોય
-                if (x > rect.left && x < rect.right && y > rect.top && y < rect.bottom) {
-                    card.classList.add('revealed'); // કાર્ડ ખોલી નાખો
-                } else {
-                    card.classList.remove('revealed'); // પાછું બંધ કરો
-                }
-            });
-        }
+        const cards = document.querySelectorAll('.card');
+        
+        // ક્લિક સાઉન્ડ ઈફેક્ટ (ઓપ્શનલ)
+        // const clickSound = new Audio('https://www.soundjay.com/button/sounds/button-3.mp3'); 
 
         function onResults(results) {
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                // પહેલો હાથ પકડો
                 const landmarks = results.multiHandLandmarks[0];
                 
-                // Index Finger Tip (આંગળીનું ટેરવું) - ID 8
+                // Point 8 = Index Finger Tip (આંગળી)
+                // Point 4 = Thumb Tip (અંગૂઠો)
                 const indexTip = landmarks[8];
+                const thumbTip = landmarks[4];
 
-                // કો-ઓર્ડિનેટ્સને સ્ક્રીન મુજબ ફેરવો (Mirror effect સાથે)
+                // કર્સરની પોઝિશન (આંગળીના ટેરવે)
                 const x = (1 - indexTip.x) * window.innerWidth;
                 const y = indexTip.y * window.innerHeight;
+                
+                cursor.style.left = x + "px";
+                cursor.style.top = y + "px";
+                cursor.style.display = "block";
 
-                checkCollision(x, y);
+                // ગણિત: બે પોઈન્ટ વચ્ચેનું અંતર (Pythagorean theorem)
+                // આ નક્કી કરશે કે તમે ચપટી વગાડી છે કે નહીં
+                const distance = Math.hypot(
+                    (indexTip.x - thumbTip.x),
+                    (indexTip.y - thumbTip.y)
+                );
+
+                // જો અંતર 0.05 થી ઓછું હોય, તો તેને "CLICK" ગણવું
+                const isPinching = distance < 0.05;
+
+                if (isPinching) {
+                    cursor.classList.add('clicking');
+                } else {
+                    cursor.classList.remove('clicking');
+                }
+
+                // કાર્ડ્સ સાથે અથડામણ (Collision Detection)
+                cards.forEach(card => {
+                    const rect = card.getBoundingClientRect();
+                    
+                    if (x > rect.left && x < rect.right && y > rect.top && y < rect.bottom) {
+                        card.classList.add('active'); // ગ્લો ઈફેક્ટ
+                        
+                        // જો કાર્ડ ઉપર હોવ અને પિંચ (Click) કરો તો જ ખૂલે
+                        if (isPinching && !card.classList.contains('revealed')) {
+                            // clickSound.play(); // સાઉન્ડ
+                            card.classList.add('revealed');
+                            
+                            // ફોન વાઈબ્રેટ થશે (Tactile Feedback)
+                            if (navigator.vibrate) navigator.vibrate(50);
+                        }
+                    } else {
+                        card.classList.remove('active');
+                    }
+                });
+
             } else {
                 cursor.style.display = "none";
             }
         }
 
-        const hands = new Hands({locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-        }});
-
+        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        
         hands.setOptions({
             maxNumHands: 1,
             modelComplexity: 1,
@@ -113,14 +148,10 @@
         hands.onResults(onResults);
 
         const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await hands.send({image: videoElement});
-            },
-            width: 640,
-            height: 480
+            onFrame: async () => await hands.send({image: videoElement}),
+            width: 640, height: 480
         });
         camera.start();
     </script>
-
 </body>
 </html>
