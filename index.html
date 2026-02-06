@@ -3,211 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vidushi Pulse Monitor</title>
+    <title>Dev's Matrix Vision</title>
     <style>
-        body { margin: 0; background: #111; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
         
-        h2 { color: #ff3333; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+        #canvas { 
+            display: block; 
+            width: 100vw; height: 100vh; 
+            transform: scaleX(-1); /* મિરર ઈફેક્ટ */
+        }
         
-        /* ધબકતું હૃદય */
-        #heart-icon {
-            font-size: 80px; color: #333; margin: 20px;
-            transition: transform 0.1s;
-        }
-        .beat { color: #ff0000 !important; transform: scale(1.2); }
-
-        /* ગ્રાફ */
-        canvas {
-            background: #000;
-            border: 1px solid #333;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.2);
-            width: 90%; max-width: 400px; height: 200px;
-        }
-
-        #bpm-display { font-size: 60px; font-weight: bold; margin: 10px; font-family: monospace; }
-        #status { color: #aaa; font-size: 14px; margin-top: 5px; text-align: center; max-width: 300px;}
-
-        /* વિડીયો છુપાયેલો રહેશે */
-        video { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
-
-        button {
-            margin-top: 20px; padding: 10px 20px;
-            background: #ff3333; color: white; border: none; border-radius: 5px;
-            font-size: 16px; cursor: pointer;
+        #video { display: none; }
+        
+        #ui {
+            position: absolute; top: 10px; left: 10px;
+            color: #0F0; font-size: 12px;
+            background: rgba(0, 20, 0, 0.8);
+            padding: 10px; border: 1px solid #0F0;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
 
-    <h2>Vidushi Pulse ❤️</h2>
-    
-    <div id="heart-icon">♥</div>
-    <div id="bpm-display">--</div>
-    <div style="color: #ff3333; font-size: 12px;">BPM</div>
-
-    <canvas id="waveCanvas"></canvas>
-    
-    <p id="status">કેમેરા શરૂ કરવા માટે બટન દબાવો.</p>
-    <button id="startBtn">Start Monitor</button>
+    <div id="ui">
+        SYSTEM: MATRIX CORE<br>
+        RESOLUTION: HIGH<br>
+        MODE: ASCII RENDER
+    </div>
 
     <video id="video" playsinline></video>
+    <canvas id="canvas"></canvas>
 
     <script>
         const video = document.getElementById('video');
-        const canvas = document.getElementById('waveCanvas');
+        const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const bpmDisplay = document.getElementById('bpm-display');
-        const status = document.getElementById('status');
-        const heartIcon = document.getElementById('heart-icon');
-        const startBtn = document.getElementById('startBtn');
 
-        let isRunning = false;
-        let signalBuffer = []; // ગ્રાફ માટે ડેટા
-        const maxBuffer = 100;
-        
-        // BPM ગણતરી માટે
-        let peaks = [];
-        let lastPeakTime = 0;
+        // કેરેક્ટર્સ: ઘાટા થી આછા (Dark to Light)
+        // આ સ્ટ્રિંગ નક્કી કરે છે કે કયા પિક્સેલ માટે કયો અક્ષર વાપરવો
+        const density = "Ñ@#W$9876543210?!abc;:+=-,._ ";
+        // const density = "SIMPLE_TEXT_ "; // તમે આ બદલી શકો
 
-        // ટોર્ચ (Flash) ચાલુ કરવાનો પ્રયાસ
-        async function enableTorch(track) {
-            try {
-                await track.applyConstraints({ advanced: [{ torch: true }] });
-            } catch (err) {
-                console.log("Torch not supported/allowed", err);
-                status.innerText += " (Flash ચાલુ નથી થઈ શક્યો, મહેરબાની કરીને લાઈટ સામે આંગળી રાખો)";
-            }
+        async function setupCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 480 },
+                audio: false
+            });
+            video.srcObject = stream;
+            await video.play();
         }
 
-        startBtn.addEventListener('click', async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' }
-                });
-                video.srcObject = stream;
-                await video.play();
-
-                // કેમેરાની સેટિંગ્સમાંથી ટોર્ચ ચાલુ કરવાનો પ્રયાસ
-                const track = stream.getVideoTracks()[0];
-                enableTorch(track);
-
-                status.innerText = "💡 હવે પાછળના કેમેરા પર આંગળી મૂકો (Flash ઢંકાઈ જાય તેમ).";
-                startBtn.style.display = 'none';
-                
-                canvas.width = canvas.offsetWidth;
-                canvas.height = canvas.offsetHeight;
-                
-                isRunning = true;
-                processFrame();
-
-            } catch (err) {
-                status.innerText = "Error: Camera Access Denied.";
-            }
-        });
-
-        function processFrame() {
-            if (!isRunning) return;
-
-            // વિડીયોમાંથી ડેટા વાંચવા માટે એક નાનું કેન્વાસ
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = 50; // નાની સાઈઝ જેથી પ્રોસેસિંગ ફાસ્ટ થાય
-            tempCanvas.height = 50;
+        function render() {
+            // કેન્વાસને વિડીયોની સાઈઝ આપો
+            const w = canvas.width = window.innerWidth;
+            const h = canvas.height = window.innerHeight;
             
-            tempCtx.drawImage(video, 0, 0, 50, 50);
-            const frame = tempCtx.getImageData(0, 0, 50, 50);
+            // આપણે પરફોર્મન્સ માટે નાનું ડ્રોઈંગ બનાવીશું અને તેને ટેક્સ્ટમાં ફેરવીશું
+            // ગણતરી: સ્ક્રીન પર કેટલા અક્ષરો સમાશે?
+            const fontSize = 12;
+            const cols = Math.floor(w / fontSize);
+            const rows = Math.floor(h / fontSize);
+
+            // 1. મેમરીમાં એક નાની ઈમેજ દોરો (Hidden Processing)
+            const hiddenCanvas = document.createElement('canvas');
+            hiddenCanvas.width = cols;
+            hiddenCanvas.height = rows;
+            const hiddenCtx = hiddenCanvas.getContext('2d');
+            
+            // વિડીયોને નાનો કરીને ડ્રો કરો (Downsampling)
+            hiddenCtx.drawImage(video, 0, 0, cols, rows);
+            
+            // 2. પિક્સેલ ડેટા વાંચો
+            const frame = hiddenCtx.getImageData(0, 0, cols, rows);
             const data = frame.data;
 
-            // સરેરાશ લાલ રંગ (Red Brightness) શોધો
-            let totalRed = 0;
+            // 3. મુખ્ય કેન્વાસ પર ટેક્સ્ટ લખો
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, w, h); // સ્ક્રીન સાફ કરો
+
+            ctx.fillStyle = "#0F0"; // Matrix Green Color
+            ctx.font = fontSize + "px monospace";
+
+            // દરેક પિક્સેલ માટે લૂપ ફેરવો
             for (let i = 0; i < data.length; i += 4) {
-                totalRed += data[i]; // Red channel
-            }
-            const avgRed = totalRed / (data.length / 4);
-
-            // જો આંગળી મૂકી હોય, તો લાલ કલર બહુ વધારે હશે
-            if (avgRed < 50) {
-                status.innerText = "⚠️ આંગળી બરાબર મૂકો (Flash દેખાવી જોઈએ)";
-                status.style.color = "orange";
-                bpmDisplay.innerText = "--";
-            } else {
-                status.innerText = "Detecting Pulse... (સ્થિર રહો)";
-                status.style.color = "#aaa";
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
                 
-                // સિગ્નલ બફરમાં ડેટા ઉમેરો
-                signalBuffer.push(avgRed);
-                if (signalBuffer.length > maxBuffer) signalBuffer.shift();
+                // તેજસ્વીતા (Brightness) શોધો
+                const avg = (r + g + b) / 3;
+                
+                // Brightness (0-255) ને Character String (0-length) સાથે મેપ કરો
+                const len = density.length;
+                const charIndex = Math.floor((avg / 255) * len);
+                
+                const char = density.charAt(charIndex);
 
-                drawGraph();
-                calculateBPM(avgRed);
+                // ટેક્સ્ટની પોઝિશન શોધો
+                // i/4 કારણ કે ડેટા એરેમાં 4 વેલ્યુ (RGBA) હોય છે
+                const pixelIndex = i / 4;
+                const x = (pixelIndex % cols) * fontSize;
+                const y = Math.floor(pixelIndex / cols) * fontSize;
+
+                ctx.fillText(char, x, y);
             }
 
-            requestAnimationFrame(processFrame);
+            requestAnimationFrame(render);
         }
 
-        function calculateBPM(value) {
-            const now = Date.now();
-            
-            // Peak Detection (સરળ લોજિક)
-            // જો અત્યારની વેલ્યુ સરેરાશ કરતાં વધારે હોય તો ધબકારો ગણવો
-            
-            // બફરની સરેરાશ કાઢો (Baseline)
-            const sum = signalBuffer.reduce((a, b) => a + b, 0);
-            const avg = sum / signalBuffer.length;
+        setupCamera().then(() => {
+            render();
+        });
 
-            // Threshold (સરેરાશ કરતા થોડું ઉપર)
-            if (value > avg + 2 && (now - lastPeakTime > 300)) { // 300ms min delay (to avoid double count)
-                lastPeakTime = now;
-                
-                // Visual Effect
-                heartIcon.classList.add('beat');
-                setTimeout(() => heartIcon.classList.remove('beat'), 100);
-
-                // BPM ગણતરી (60000 ms / time diff)
-                peaks.push(now);
-                if (peaks.length > 5) peaks.shift(); // છેલ્લા 5 ધબકારાનો એવરેજ
-
-                if (peaks.length > 1) {
-                    let totalDiff = 0;
-                    for (let i = 1; i < peaks.length; i++) {
-                        totalDiff += (peaks[i] - peaks[i-1]);
-                    }
-                    let avgDiff = totalDiff / (peaks.length - 1);
-                    let bpm = Math.round(60000 / avgDiff);
-                    
-                    // વાસ્તવિક રેન્જ (40-160) હોય તો જ બતાવો
-                    if (bpm > 40 && bpm < 180) {
-                        bpmDisplay.innerText = bpm;
-                    }
-                }
-            }
-        }
-
-        function drawGraph() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.beginPath();
-            ctx.strokeStyle = '#ff3333';
-            ctx.lineWidth = 2;
-
-            const sliceWidth = canvas.width / maxBuffer;
-            let x = 0;
-
-            // ગ્રાફને નોર્મલાઈઝ કરો (જેથી તે કેન્વાસની વચ્ચે દેખાય)
-            const min = Math.min(...signalBuffer);
-            const max = Math.max(...signalBuffer);
-            const range = max - min || 1;
-
-            for (let i = 0; i < signalBuffer.length; i++) {
-                const y = canvas.height - ((signalBuffer[i] - min) / range) * canvas.height;
-                
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-
-                x += sliceWidth;
-            }
-            ctx.stroke();
-        }
     </script>
 </body>
 </html>
