@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dev's Digital Mentalist</title>
+    <style>
+        body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
+        h2 { text-align: center; margin-top: 10px; }
+        
+        /* કેમેરાને આપણે છુપાવી દઈશું અથવા નાનો રાખીશું */
+        #webcam { position: absolute; top: 0; left: 0; width: 100px; opacity: 0.5; z-index: 10; transform: scaleX(-1); }
+        
+        /* જાદુઈ કર્સર */
+        #magicCursor {
+            position: absolute; width: 20px; height: 20px;
+            background: red; border-radius: 50%;
+            box-shadow: 0 0 10px red; pointer-events: none;
+            display: none; z-index: 100;
+        }
+
+        /* કાર્ડ કન્ટેનર */
+        .card-container {
+            display: flex; justify-content: center; align-items: center;
+            height: 80vh; gap: 20px;
+        }
+
+        /* કાર્ડની ડિઝાઈન */
+        .card {
+            width: 90px; height: 140px;
+            background: linear-gradient(135deg, #444, #222);
+            border: 2px solid gold; border-radius: 10px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 40px; cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .card.revealed { background: white; border-color: red; transform: scale(1.1); }
+        .card span { display: none; }
+        .card.revealed span { display: block; }
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <h2>Digital Mentalist 🔮</h2>
+    <p style="text-align:center; font-size:12px;">હવામાં આંગળી ચીંધો અને કાર્ડ પસંદ કરો!</p>
+
+    <video id="webcam" playsinline></video>
+
+    <div id="magicCursor"></div>
+
+    <div class="card-container">
+        <div class="card" id="card1"><span>🍎</span></div>
+        <div class="card" id="card2"><span>👑</span></div>
+        <div class="card" id="card3"><span>🚀</span></div>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('webcam');
+        const cursor = document.getElementById('magicCursor');
+        const cards = [document.getElementById('card1'), document.getElementById('card2'), document.getElementById('card3')];
+
+        // કાર્ડ પર હોવર કરવાની અસર
+        function checkCollision(x, y) {
+            cursor.style.left = x + "px";
+            cursor.style.top = y + "px";
+            cursor.style.display = "block";
+
+            cards.forEach(card => {
+                const rect = card.getBoundingClientRect();
+                // જો કર્સર કાર્ડની અંદર હોય
+                if (x > rect.left && x < rect.right && y > rect.top && y < rect.bottom) {
+                    card.classList.add('revealed'); // કાર્ડ ખોલી નાખો
+                } else {
+                    card.classList.remove('revealed'); // પાછું બંધ કરો
+                }
+            });
+        }
+
+        function onResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                // પહેલો હાથ પકડો
+                const landmarks = results.multiHandLandmarks[0];
+                
+                // Index Finger Tip (આંગળીનું ટેરવું) - ID 8
+                const indexTip = landmarks[8];
+
+                // કો-ઓર્ડિનેટ્સને સ્ક્રીન મુજબ ફેરવો (Mirror effect સાથે)
+                const x = (1 - indexTip.x) * window.innerWidth;
+                const y = indexTip.y * window.innerHeight;
+
+                checkCollision(x, y);
+            } else {
+                cursor.style.display = "none";
+            }
+        }
+
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7
+        });
+
+        hands.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+        camera.start();
+    </script>
+
+</body>
+</html>
