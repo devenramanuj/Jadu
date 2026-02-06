@@ -3,153 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Next Level Mentalist</title>
+    <title>Dev's Face Mesh Core</title>
     <style>
-        body { margin: 0; background: #0f0c29; color: white; font-family: sans-serif; overflow: hidden; }
-        h2 { text-align: center; margin-top: 10px; color: #00d2ff; text-shadow: 0 0 10px #00d2ff; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
         
-        #webcam { position: absolute; top: 0; left: 0; width: 100px; opacity: 0.3; transform: scaleX(-1); }
+        /* કેમેરા અને કેન્વાસ એકબીજા પર ઓવરલે થશે */
+        #container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
         
-        /* સ્માર્ટ કર્સર */
-        #magicCursor {
-            position: absolute; width: 25px; height: 25px;
-            border: 3px solid #00d2ff; border-radius: 50%;
-            pointer-events: none; display: none; z-index: 100;
-            transition: background 0.1s, transform 0.1s;
-            transform: translate(-50%, -50%);
-        }
+        video { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0.4; }
+        canvas { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 
-        /* જ્યારે પિંચ કરો ત્યારે કર્સર આવું થશે */
-        #magicCursor.clicking {
-            background: #00d2ff;
-            transform: translate(-50%, -50%) scale(0.8);
+        /* ડેટા પેનલ */
+        #debug-panel {
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(0, 20, 0, 0.8); color: #0f0;
+            padding: 10px; border: 1px solid #0f0;
+            font-size: 12px; z-index: 100;
+            box-shadow: 0 0 10px #0f0;
         }
-
-        .card-container {
-            display: flex; justify-content: center; align-items: center;
-            height: 80vh; gap: 20px;
-        }
-
-        .card {
-            width: 100px; height: 160px;
-            background: linear-gradient(135deg, #2b2b2b, #000);
-            border: 2px solid #555; border-radius: 12px;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 50px; 
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-            transition: transform 0.3s, border-color 0.3s;
-        }
-
-        /* જે સિલેક્ટ થાય એ કાર્ડ ગ્લો થશે */
-        .card.active { border-color: #00d2ff; transform: scale(1.1); box-shadow: 0 0 25px #00d2ff; }
-        .card span { display: none; filter: drop-shadow(0 0 5px white); }
-        .card.revealed { background: white; }
-        .card.revealed span { display: block; }
-
-        .instruction {
-            position: absolute; bottom: 20px; width: 100%; text-align: center;
-            color: gray; font-size: 14px;
-        }
+        
+        h3 { margin: 0; border-bottom: 1px solid #0f0; padding-bottom: 5px; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
-    <h2>Gesture Master 🤏</h2>
-    
-    <video id="webcam" playsinline></video>
-    <div id="magicCursor"></div>
-
-    <div class="card-container">
-        <div class="card" id="c1"><span>🕉️</span></div>
-        <div class="card" id="c2"><span>⚛️</span></div>
-        <div class="card" id="c3"><span>☯️</span></div>
+    <div id="debug-panel">
+        <h3>SYSTEM STATUS</h3>
+        <p>TRACKING: <span id="status">INITIALIZING...</span></p>
+        <p>FACE POINTS: 468 Active</p>
+        <p>RIGHT EYE: <span id="eye-r">0.0</span></p>
+        <p>LEFT EYE: <span id="eye-l">0.0</span></p>
     </div>
 
-    <div class="instruction">કાર્ડ પર આંગળી લાવો અને પસંદ કરવા માટે <b>ચપટી (Pinch)</b> વગાડો 👌</div>
+    <div id="container">
+        <video id="webcam" playsinline></video>
+        <canvas id="output_canvas"></canvas>
+    </div>
 
     <script>
         const videoElement = document.getElementById('webcam');
-        const cursor = document.getElementById('magicCursor');
-        const cards = document.querySelectorAll('.card');
-        
-        // ક્લિક સાઉન્ડ ઈફેક્ટ (ઓપ્શનલ)
-        // const clickSound = new Audio('https://www.soundjay.com/button/sounds/button-3.mp3'); 
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const statusText = document.getElementById('status');
+        const eyeRText = document.getElementById('eye-r');
+        const eyeLText = document.getElementById('eye-l');
 
         function onResults(results) {
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const landmarks = results.multiHandLandmarks[0];
-                
-                // Point 8 = Index Finger Tip (આંગળી)
-                // Point 4 = Thumb Tip (અંગૂઠો)
-                const indexTip = landmarks[8];
-                const thumbTip = landmarks[4];
+            // કેન્વાસ સાઈઝ સેટ કરો
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
 
-                // કર્સરની પોઝિશન (આંગળીના ટેરવે)
-                const x = (1 - indexTip.x) * window.innerWidth;
-                const y = indexTip.y * window.innerHeight;
-                
-                cursor.style.left = x + "px";
-                cursor.style.top = y + "px";
-                cursor.style.display = "block";
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            // આપણે ઓરિજિનલ વિડીયો નથી બતાવતા, ફક્ત બ્લેક બેકગ્રાઉન્ડ પર મેશ બતાવીએ તો વધારે સારું લાગશે
+            // પણ રેફરન્સ માટે થોડું ટ્રાન્સપરન્ટ વિડીયો રાખ્યું છે CSS માં.
 
-                // ગણિત: બે પોઈન્ટ વચ્ચેનું અંતર (Pythagorean theorem)
-                // આ નક્કી કરશે કે તમે ચપટી વગાડી છે કે નહીં
-                const distance = Math.hypot(
-                    (indexTip.x - thumbTip.x),
-                    (indexTip.y - thumbTip.y)
-                );
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                statusText.innerText = "LOCKED [ACTIVE]";
+                statusText.style.color = "#0f0";
 
-                // જો અંતર 0.05 થી ઓછું હોય, તો તેને "CLICK" ગણવું
-                const isPinching = distance < 0.05;
-
-                if (isPinching) {
-                    cursor.classList.add('clicking');
-                } else {
-                    cursor.classList.remove('clicking');
-                }
-
-                // કાર્ડ્સ સાથે અથડામણ (Collision Detection)
-                cards.forEach(card => {
-                    const rect = card.getBoundingClientRect();
+                for (const landmarks of results.multiFaceLandmarks) {
                     
-                    if (x > rect.left && x < rect.right && y > rect.top && y < rect.bottom) {
-                        card.classList.add('active'); // ગ્લો ઈફેક્ટ
-                        
-                        // જો કાર્ડ ઉપર હોવ અને પિંચ (Click) કરો તો જ ખૂલે
-                        if (isPinching && !card.classList.contains('revealed')) {
-                            // clickSound.play(); // સાઉન્ડ
-                            card.classList.add('revealed');
-                            
-                            // ફોન વાઈબ્રેટ થશે (Tactile Feedback)
-                            if (navigator.vibrate) navigator.vibrate(50);
-                        }
-                    } else {
-                        card.classList.remove('active');
-                    }
-                });
+                    // 1. આખા ચહેરાની જાળી (Tesselation) દોરો
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION,
+                                   {color: '#C0C0C070', lineWidth: 1});
+                    
+                    // 2. જમણી આંખ (Right Eye)
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#00FF00', lineWidth: 2});
+                    
+                    // 3. ડાબી આંખ (Left Eye)
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {color: '#00FF00', lineWidth: 2});
+                    
+                    // 4. હોઠ (Lips)
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, {color: '#FF0000', lineWidth: 2});
 
+                    // 5. ચહેરો (Face Oval)
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {color: '#E0E0E0', lineWidth: 1});
+
+                    // --- Advanced Logic: Eye Blink Detection (Simple Math) ---
+                    // આંખ ખુલ્લી છે કે બંધ તે ચકાસવા માટે ઉપર અને નીચેના પોપચા વચ્ચેનું અંતર
+                    const rightEyeTop = landmarks[159];
+                    const rightEyeBottom = landmarks[145];
+                    const leftEyeTop = landmarks[386];
+                    const leftEyeBottom = landmarks[374];
+
+                    const rDistance = Math.abs(rightEyeTop.y - rightEyeBottom.y);
+                    const lDistance = Math.abs(leftEyeTop.y - leftEyeBottom.y);
+
+                    eyeRText.innerText = rDistance.toFixed(4);
+                    eyeLText.innerText = lDistance.toFixed(4);
+
+                    // જો વેલ્યુ બહુ ઓછી હોય તો "BLINK" લખવું
+                    if(rDistance < 0.01) eyeRText.innerText += " (BLINK)";
+                    if(lDistance < 0.01) eyeLText.innerText += " (BLINK)";
+                }
             } else {
-                cursor.style.display = "none";
+                statusText.innerText = "SEARCHING...";
+                statusText.style.color = "red";
             }
+            canvasCtx.restore();
         }
 
-        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-        
-        hands.setOptions({
-            maxNumHands: 1,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.7,
-            minTrackingConfidence: 0.7
+        const faceMesh = new FaceMesh({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+        }});
+
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true, // આંખ અને હોઠનું સચોટ ટ્રેકિંગ
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
         });
 
-        hands.onResults(onResults);
+        faceMesh.onResults(onResults);
 
         const camera = new Camera(videoElement, {
-            onFrame: async () => await hands.send({image: videoElement}),
-            width: 640, height: 480
+            onFrame: async () => {
+                await faceMesh.send({image: videoElement});
+            },
+            width: 1280,
+            height: 720
         });
         camera.start();
     </script>
