@@ -1,130 +1,125 @@
 <!DOCTYPE html>
-<html lang="gu">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dev's Smart Reader Pro</title>
+    <title>Dev's Hologram</title>
     <style>
-        body { margin: 0; background: #fdf6e3; color: #333; font-family: 'Georgia', serif; line-height: 1.8; padding-bottom: 50vh; }
-        
-        /* સેટિંગ પેનલ */
-        #control-panel {
-            position: fixed; top: 0; left: 0; width: 100%; 
-            background: rgba(0, 0, 0, 0.9); color: #0f0; 
-            padding: 10px; z-index: 2000; font-family: monospace; font-size: 12px;
-            display: flex; flex-direction: column; gap: 5px;
+        body { 
+            margin: 0; background: #0f0c29; 
+            height: 100vh; display: flex; justify-content: center; align-items: center; 
+            font-family: 'Segoe UI', sans-serif; overflow: hidden;
+            perspective: 1000px; /* 3D Effect માટે આ જરૂરી છે */
         }
 
-        .row { display: flex; justify-content: space-between; align-items: center; }
-        button { padding: 5px 10px; background: #333; color: white; border: 1px solid #555; }
-        
-        /* વિઝ્યુઅલ બાર */
-        #bar-container { width: 100%; height: 10px; background: #333; margin-top: 5px; position: relative; }
-        #nose-marker { width: 4px; height: 100%; background: #0f0; position: absolute; left: 50%; transition: left 0.1s; }
-        #zone-neutral { position: absolute; left: 40%; width: 20%; height: 100%; background: rgba(255, 255, 255, 0.2); }
+        /* બેકગ્રાઉન્ડ ઇફેક્ટ */
+        .bg-gradient {
+            position: absolute; width: 200%; height: 200%;
+            background: radial-gradient(circle at center, #302b63, #24243e);
+            z-index: -1; transition: transform 0.1s;
+        }
 
-        .content { margin-top: 120px; padding: 20px; }
-        .verse { background: #fff; padding: 20px; margin-bottom: 20px; border-left: 5px solid #b58900; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .verse-title { font-weight: bold; color: #b58900; }
+        /* 3D કાર્ડ */
+        .glass-card {
+            width: 320px; height: 190px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 25px 45px rgba(0,0,0,0.5);
+            
+            display: flex; flex-direction: column; justify-content: space-between; padding: 25px;
+            color: white;
+            
+            /* આ મુખ્ય જાદુ છે - CSS Variables */
+            transform-style: preserve-3d;
+            transform: rotateX(var(--rX, 0deg)) rotateY(var(--rY, 0deg));
+            transition: transform 0.1s ease-out;
+            position: relative;
+        }
+
+        /* કાર્ડ પર ચમકતો પ્રકાશ (Glare Effect) */
+        .glass-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at var(--gX, 50%) var(--gY, 50%), rgba(255,255,255,0.3), transparent 60%);
+            opacity: 0.8; pointer-events: none; border-radius: 15px;
+            transform: translateZ(1px); /* સપાટીથી સહેજ ઉપર */
+        }
+
+        /* કાર્ડની અંદરની વસ્તુઓ પણ 3D માં ઉપસેલી લાગશે */
+        .chip { width: 50px; height: 35px; background: linear-gradient(135deg, #d4af37, #f2d06b); border-radius: 5px; transform: translateZ(20px); box-shadow: 0 5px 10px rgba(0,0,0,0.3); }
+        .number { font-size: 22px; letter-spacing: 4px; text-shadow: 0 2px 5px rgba(0,0,0,0.5); transform: translateZ(30px); }
+        .name { font-size: 14px; text-transform: uppercase; opacity: 0.8; transform: translateZ(15px); }
+        .logo { font-size: 20px; font-weight: bold; align-self: flex-end; transform: translateZ(25px); color: #00d2ff; }
+
+        #cam-preview { position: fixed; top: 0; left: 0; width: 1px; opacity: 0; pointer-events: none; }
         
-        #cam-preview { position: fixed; bottom: 0; right: 0; width: 80px; opacity: 0.5; pointer-events: none; }
+        #status { position: fixed; bottom: 20px; color: rgba(255,255,255,0.3); font-size: 10px; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
-    <div id="control-panel">
-        <div class="row">
-            <span>STATUS: <b id="status-text">WAITING...</b></span>
-            <span>Y: <b id="y-val">0.00</b></span>
-        </div>
-        <div class="row">
-            <label><input type="checkbox" id="invert-check"> ઊંધું કરો (Reverse)</label>
-            <button onclick="window.scrollTo(0,0)">Top</button>
-        </div>
-        <div id="bar-container">
-            <div id="zone-neutral"></div>
-            <div id="nose-marker"></div>
-        </div>
+    <div class="bg-gradient" id="bg"></div>
+
+    <div class="glass-card" id="card">
+        <div class="chip"></div>
+        <div class="logo">DEV TWIN-ME</div>
+        <div class="number">4589 1234 9876 5432</div>
+        <div class="name">DEVENDRA RAMANUJ<br><span style="font-size:10px">SOFTWARE DEVELOPER</span></div>
     </div>
 
+    <div id="status">Waiting for Face...</div>
     <video id="cam-preview" playsinline></video>
 
-    <div class="content">
-        <h2 style="text-align:center;">શ્રીમદ ભગવદ ગીતા (Calibration Mode)</h2>
-        <p style="text-align:center; color: #666; font-size: 0.9em;">
-            ઉપરની લીલી લીટી જુઓ.<br>
-            વચ્ચેના બોક્સમાં હોય તો સ્ક્રોલ બંધ રહેશે.<br>
-            બોક્સની બહાર જાય તો સ્ક્રોલ થશે.
-        </p>
-
-        <div class="verse"><div class="verse-title">શ્લોક ૧</div><p>ધૃતરાષ્ટ્ર ઉવાચ | ધર્મક્ષેત્રે કુરુક્ષેત્રે સમવેતા યુયુત્સવઃ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૨</div><p>સઞ્જય ઉવાચ | દૃષ્ટ્વા તુ પાણ્ડવાનીકં વ્યૂઢં દુર્યોધનસ્તદા |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૩</div><p>પશ્યૈતાં પાણ્ડુપુત્રાણામાચાર્ય મહતીં ચમૂમ્ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૪</div><p>અત્ર શૂરા મહેષ્વાસા ભીમાર્જુનસમા યુધિ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૫</div><p>ધૃષ્ટકેતુશ્ચેકિતાનઃ કાશીરાજશ્ચ વીર્યવાન્ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૬</div><p>યુધામન્યુશ્ચ વિક્રાન્ત ઉત્તમૌજાશ્ચ વીર્યવાન્ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૭</div><p>અસ્માકં તુ વિશિષ્ટા યે તાન્નિબોધ દ્વિજોત્તમ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૮</div><p>ભવાનભીષ્મશ્ચ કર્ણશ્ચ કૃપશ્ચ સમિતિઞ્જયઃ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૯</div><p>અન્યે ચ બહવઃ શૂરા મદર્થે ત્યક્તજીવિતાઃ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૧૦</div><p>અપર્યાપ્તં તદસ્માકં બલં ભીષ્માભિરક્ષિતમ્ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૧૧</div><p>અયનેષુ ચ સર્વેષુ યથાભાગમવસ્થિતાઃ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૧૨</div><p>તસ્ય સઞ્જનયન્હર્ષં કુરુવૃદ્ધઃ પિતામહઃ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૧૩</div><p>તતઃ શઙ્ખાશ્ચ ભેર્યશ્ચ પણવાનકગોમુખાઃ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૧૪</div><p>તતઃ શ્વેતૈર્હયૈર્યુક્તે મહતિ સ્યન્દને સ્થિતૌ |</p></div>
-        <div class="verse"><div class="verse-title">શ્લોક ૧૫</div><p>પાઞ્ચજન્યં હૃષીકેશો દેવદત્તં ધનઞ્જયઃ |</p></div>
-    </div>
-
     <script>
+        const card = document.getElementById('card');
+        const bg = document.getElementById('bg');
+        const status = document.getElementById('status');
         const videoElement = document.getElementById('cam-preview');
-        const statusText = document.getElementById('status-text');
-        const yValText = document.getElementById('y-val');
-        const noseMarker = document.getElementById('nose-marker');
-        const invertCheck = document.getElementById('invert-check');
 
         function onResults(results) {
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                status.innerText = "Tracking Active";
                 const landmarks = results.multiFaceLandmarks[0];
-                const noseTip = landmarks[1];
-                let y = noseTip.y; // 0 (Top) to 1 (Bottom)
+                
+                // Nose Tip (1)
+                // Center is roughly 0.5, 0.5
+                const nose = landmarks[1];
 
-                // Update Debug UI
-                yValText.innerText = y.toFixed(2);
-                noseMarker.style.left = (y * 100) + "%";
+                // ગણતરી: ચહેરો સેન્ટરથી કેટલો દૂર છે?
+                // x: ડાબે-જમણે, y: ઉપર-નીચે
+                // આપણે -1 થી 1 ની રેન્જ બનાવીએ
+                const x = (nose.x - 0.5) * 2; 
+                const y = (nose.y - 0.5) * 2; 
 
-                let speed = 10;
-                let scrollAmount = 0;
+                // --- 1. CARD ROTATION (3D TILT) ---
+                // માથું ડાબે જાય (x < 0), તો કાર્ડ જમણી બાજુ વળવું જોઈએ (Positive Rotate Y)
+                // વધુ પડતું ન ફરે એટલે 45 ડિગ્રીનું લિમિટ રાખીએ
+                const rotateY = x * -45; 
+                const rotateX = y * 45;
 
-                // Logic: Center area is 0.40 to 0.60
-                if (y > 0.60) { 
-                    statusText.innerText = "DOWN ▼";
-                    statusText.style.color = "cyan";
-                    scrollAmount = speed; // Default Scroll Down
-                } 
-                else if (y < 0.40) { 
-                    statusText.innerText = "UP ▲";
-                    statusText.style.color = "orange";
-                    scrollAmount = -speed; // Default Scroll Up
-                } 
-                else {
-                    statusText.innerText = "NEUTRAL";
-                    statusText.style.color = "lime";
-                    scrollAmount = 0;
-                }
+                // CSS Variables અપડેટ કરીએ
+                card.style.setProperty('--rY', rotateY + 'deg');
+                card.style.setProperty('--rX', rotateX + 'deg');
 
-                // If Invert checkbox is checked, flip the direction
-                if (invertCheck.checked) {
-                    scrollAmount = -scrollAmount;
-                }
+                // --- 2. GLARE EFFECT (પ્રકાશ) ---
+                // કાર્ડ પરનો પ્રકાશ માથાની વિરુદ્ધ દિશામાં જવો જોઈએ
+                const glareX = 50 + (x * 40); // 50% +- 40%
+                const glareY = 50 + (y * 40);
+                card.style.setProperty('--gX', glareX + '%');
+                card.style.setProperty('--gY', glareY + '%');
 
-                if (scrollAmount !== 0) {
-                    window.scrollBy({ top: scrollAmount, behavior: 'smooth' });
-                }
+                // --- 3. BACKGROUND PARALLAX ---
+                // બેકગ્રાઉન્ડ પણ સહેજ હલવું જોઈએ (Depth માટે)
+                bg.style.transform = `translate(${x * -20}px, ${y * -20}px)`;
 
             } else {
-                statusText.innerText = "NO FACE";
-                statusText.style.color = "red";
+                status.innerText = "No Face Detected";
+                // રીસેટ કરો
+                card.style.setProperty('--rY', '0deg');
+                card.style.setProperty('--rX', '0deg');
             }
         }
 
