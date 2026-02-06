@@ -1,121 +1,110 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="gu">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dev's Face Mesh Core</title>
+    <title>Dev's Smart Reader</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+        body { margin: 0; background: #fdf6e3; color: #333; font-family: 'Georgia', serif; line-height: 1.8; transition: background 0.3s; }
         
-        /* કેમેરા અને કેન્વાસ એકબીજા પર ઓવરલે થશે */
-        #container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        /* Header */
+        header { position: fixed; top: 0; left: 0; width: 100%; background: #002b36; color: #eee; padding: 10px; z-index: 100; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        h2 { margin: 0; font-size: 18px; padding-left: 10px; }
         
-        video { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0.4; }
-        canvas { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-
-        /* ડેટા પેનલ */
-        #debug-panel {
-            position: absolute; top: 10px; left: 10px;
-            background: rgba(0, 20, 0, 0.8); color: #0f0;
-            padding: 10px; border: 1px solid #0f0;
-            font-size: 12px; z-index: 100;
-            box-shadow: 0 0 10px #0f0;
-        }
+        /* Status Indicator */
+        #status-badge { background: #dc322f; color: white; padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; margin-right: 10px; transition: background 0.3s; }
         
-        h3 { margin: 0; border-bottom: 1px solid #0f0; padding-bottom: 5px; }
+        /* Camera Preview (Small & Corner) */
+        #cam-preview { position: fixed; top: 60px; right: 10px; width: 80px; height: 60px; border-radius: 5px; opacity: 0.8; transform: scaleX(-1); border: 2px solid #002b36; z-index: 99; }
+        
+        /* Content Area */
+        .content { margin-top: 80px; padding: 20px; max-width: 800px; margin-left: auto; margin-right: auto; }
+        .verse { background: #fff; padding: 20px; margin-bottom: 20px; border-left: 5px solid #b58900; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .verse-title { font-weight: bold; color: #b58900; margin-bottom: 5px; }
+        
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
-    <div id="debug-panel">
-        <h3>SYSTEM STATUS</h3>
-        <p>TRACKING: <span id="status">INITIALIZING...</span></p>
-        <p>FACE POINTS: 468 Active</p>
-        <p>RIGHT EYE: <span id="eye-r">0.0</span></p>
-        <p>LEFT EYE: <span id="eye-l">0.0</span></p>
-    </div>
+    <header>
+        <h2>Smart Reader 📖</h2>
+        <div id="status-badge">OFFLINE</div>
+    </header>
 
-    <div id="container">
-        <video id="webcam" playsinline></video>
-        <canvas id="output_canvas"></canvas>
+    <video id="cam-preview" playsinline></video>
+
+    <div class="content">
+        <h1>શ્રીમદ ભગવદ ગીતા - અધ્યાય ૧</h1>
+        <p><i>(માથું સહેજ નીચે કરો તો આગળ વંચાશે, ઉપર કરો તો પાછળ જશે)</i></p>
+        
+        <div class="verse">
+            <div class="verse-title">શ્લોક ૧</div>
+            <p>ધૃતરાષ્ટ્ર ઉવાચ |<br>
+            ધર્મક્ષેત્રે કુરુક્ષેત્રે સમવેતા યુયુત્સવઃ |<br>
+            મામકાઃ પાણ્ડવાશ્ચૈવ કિમકુર્વત સઞ્જય ||1||</p>
+            <p>ભાવાર્થ: ધૃતરાષ્ટ્ર બોલ્યા: હે સંજય! ધર્મભૂમિ કુરુક્ષેત્રમાં એકઠા થયેલા યુદ્ધની ઈચ્છાવાળા મારા અને પાંડુના પુત્રોએ શું કર્યું?</p>
+        </div>
+
+        <div class="verse">
+            <div class="verse-title">શ્લોક ૨</div>
+            <p>સઞ્જય ઉવાચ |<br>
+            દૃષ્ટ્વા તુ પાણ્ડવાનીકં વ્યૂઢં દુર્યોધનસ્તદા |<br>
+            આચાર્યમુપસઙ્ગમ્ય રાજા વચનમબ્રવીત ||2||</p>
+            <p>ભાવાર્થ: સંજય બોલ્યા: તે સમયે રાજા દુર્યોધને પાંડવોની સેનાને વ્યૂહરચનામાં ઊભેલી જોઈને દ્રોણાચાર્ય પાસે જઈને આ વચન કહ્યું.</p>
+        </div>
+
+        <div class="verse"><div class="verse-title">નોંધ</div><p>આ એક ડેમો ટેક્સ્ટ છે જેથી તમે સ્ક્રોલિંગ ટેસ્ટ કરી શકો...</p></div>
+        <div class="verse"><div class="verse-title">ટેસ્ટ ૧</div><p>સ્ક્રોલિંગ ચકાસવા માટે વધુ લખાણ...</p></div>
+        <div class="verse"><div class="verse-title">ટેસ્ટ ૨</div><p>સ્ક્રોલિંગ ચકાસવા માટે વધુ લખાણ...</p></div>
+        <div class="verse"><div class="verse-title">ટેસ્ટ ૩</div><p>સ્ક્રોલિંગ ચકાસવા માટે વધુ લખાણ...</p></div>
+        <div class="verse"><div class="verse-title">ટેસ્ટ ૪</div><p>સ્ક્રોલિંગ ચકાસવા માટે વધુ લખાણ...</p></div>
+        <div class="verse"><div class="verse-title">ટેસ્ટ ૫</div><p>સ્ક્રોલિંગ ચકાસવા માટે વધુ લખાણ...</p></div>
+        <div class="verse"><div class="verse-title">ટેસ્ટ ૬</div><p>સ્ક્રોલિંગ ચકાસવા માટે વધુ લખાણ...</p></div>
     </div>
 
     <script>
-        const videoElement = document.getElementById('webcam');
-        const canvasElement = document.getElementById('output_canvas');
-        const canvasCtx = canvasElement.getContext('2d');
-        const statusText = document.getElementById('status');
-        const eyeRText = document.getElementById('eye-r');
-        const eyeLText = document.getElementById('eye-l');
+        const videoElement = document.getElementById('cam-preview');
+        const statusBadge = document.getElementById('status-badge');
+        let isScrolling = false;
 
         function onResults(results) {
-            // કેન્વાસ સાઈઝ સેટ કરો
-            canvasElement.width = videoElement.videoWidth;
-            canvasElement.height = videoElement.videoHeight;
-
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            
-            // આપણે ઓરિજિનલ વિડીયો નથી બતાવતા, ફક્ત બ્લેક બેકગ્રાઉન્ડ પર મેશ બતાવીએ તો વધારે સારું લાગશે
-            // પણ રેફરન્સ માટે થોડું ટ્રાન્સપરન્ટ વિડીયો રાખ્યું છે CSS માં.
-
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                statusText.innerText = "LOCKED [ACTIVE]";
-                statusText.style.color = "#0f0";
+                const landmarks = results.multiFaceLandmarks[0];
+                
+                // Nose Tip (1)
+                const noseTip = landmarks[1];
+                const y = noseTip.y;
 
-                for (const landmarks of results.multiFaceLandmarks) {
-                    
-                    // 1. આખા ચહેરાની જાળી (Tesselation) દોરો
-                    drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION,
-                                   {color: '#C0C0C070', lineWidth: 1});
-                    
-                    // 2. જમણી આંખ (Right Eye)
-                    drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#00FF00', lineWidth: 2});
-                    
-                    // 3. ડાબી આંખ (Left Eye)
-                    drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {color: '#00FF00', lineWidth: 2});
-                    
-                    // 4. હોઠ (Lips)
-                    drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, {color: '#FF0000', lineWidth: 2});
-
-                    // 5. ચહેરો (Face Oval)
-                    drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {color: '#E0E0E0', lineWidth: 1});
-
-                    // --- Advanced Logic: Eye Blink Detection (Simple Math) ---
-                    // આંખ ખુલ્લી છે કે બંધ તે ચકાસવા માટે ઉપર અને નીચેના પોપચા વચ્ચેનું અંતર
-                    const rightEyeTop = landmarks[159];
-                    const rightEyeBottom = landmarks[145];
-                    const leftEyeTop = landmarks[386];
-                    const leftEyeBottom = landmarks[374];
-
-                    const rDistance = Math.abs(rightEyeTop.y - rightEyeBottom.y);
-                    const lDistance = Math.abs(leftEyeTop.y - leftEyeBottom.y);
-
-                    eyeRText.innerText = rDistance.toFixed(4);
-                    eyeLText.innerText = lDistance.toFixed(4);
-
-                    // જો વેલ્યુ બહુ ઓછી હોય તો "BLINK" લખવું
-                    if(rDistance < 0.01) eyeRText.innerText += " (BLINK)";
-                    if(lDistance < 0.01) eyeLText.innerText += " (BLINK)";
+                // Thresholds (તમારા ચહેરા મુજબ એડજસ્ટ કરી શકાય)
+                // Center ~ 0.5
+                
+                if (y > 0.65) { // Head Down
+                    statusBadge.innerText = "SCROLL DOWN ▼";
+                    statusBadge.style.background = "#2aa198"; // Cyan/Green
+                    window.scrollBy({ top: 10, behavior: 'smooth' }); // Smooth scroll
+                } 
+                else if (y < 0.45) { // Head Up
+                    statusBadge.innerText = "SCROLL UP ▲";
+                    statusBadge.style.background = "#268bd2"; // Blue
+                    window.scrollBy({ top: -10, behavior: 'smooth' });
+                } 
+                else {
+                    statusBadge.innerText = "READING MODE";
+                    statusBadge.style.background = "#859900"; // Green
                 }
             } else {
-                statusText.innerText = "SEARCHING...";
-                statusText.style.color = "red";
+                statusBadge.innerText = "NO FACE DETECTED";
+                statusBadge.style.background = "#dc322f"; // Red
             }
-            canvasCtx.restore();
         }
 
-        const faceMesh = new FaceMesh({locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-        }});
-
+        const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+        
         faceMesh.setOptions({
             maxNumFaces: 1,
-            refineLandmarks: true, // આંખ અને હોઠનું સચોટ ટ્રેકિંગ
+            refineLandmarks: false,
             minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
         });
@@ -123,11 +112,8 @@
         faceMesh.onResults(onResults);
 
         const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await faceMesh.send({image: videoElement});
-            },
-            width: 1280,
-            height: 720
+            onFrame: async () => await faceMesh.send({image: videoElement}),
+            width: 320, height: 240
         });
         camera.start();
     </script>
