@@ -3,145 +3,225 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dev's Time Warp</title>
+    <title>Dev's Infinite Universe</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
-        
-        #container { position: relative; width: 100vw; height: 100vh; }
-        
-        /* લાઈવ કેમેરા (પાછળ રહેશે) */
-        #video {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover;
-        }
-
-        /* જાદુઈ કેન્વાસ (પરિણામ) */
-        #canvas {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover;
-        }
-
-        /* સ્કેનિંગ લાઈન */
-        #scan-line {
-            position: absolute; top: 0; left: 0; width: 100%; height: 4px;
-            background: #00d2ff;
-            box-shadow: 0 0 10px #00d2ff;
-            z-index: 10;
-        }
-
-        #msg {
-            position: absolute; bottom: 20px; width: 100%; text-align: center;
-            color: white; font-size: 14px; text-shadow: 0 2px 4px black;
-            z-index: 20; pointer-events: none;
-        }
-
-        #btn {
-            position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%);
-            padding: 15px 30px; background: #00d2ff; border: none; border-radius: 30px;
-            font-size: 18px; font-weight: bold; cursor: pointer; z-index: 20;
+        body { margin: 0; overflow: hidden; background: #000; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        #info {
+            position: absolute; top: 10px; left: 10px; color: #00ffcc;
+            font-family: 'Courier New', monospace; pointer-events: none;
+            background: rgba(0,0,0,0.7); padding: 10px; border: 1px solid #00ffcc;
         }
     </style>
 </head>
 <body>
 
-    <div id="container">
-        <video id="video" playsinline muted></video>
-        <canvas id="canvas"></canvas>
-        <div id="scan-line"></div>
-        
-        <div id="msg">પરિણામ જોવા માટે રાહ જુઓ...</div>
-        <button id="btn">START SCAN</button>
+    <div id="info">
+        PROJECT: MANDELBROT (GLSL)<br>
+        STATUS: RENDERING INFINITY<br>
+        ACTION: PINCH / SCROLL TO ZOOM
     </div>
+    <canvas id="glcanvas"></canvas>
+
+    <script id="vs" type="x-shader/x-vertex">
+        attribute vec2 position;
+        void main() {
+            gl_Position = vec4(position, 0.0, 1.0);
+        }
+    </script>
+
+    <script id="fs" type="x-shader/x-fragment">
+        precision highp float;
+        uniform vec2 u_resolution;
+        uniform vec2 u_zoomCenter;
+        uniform float u_zoomSize;
+        uniform int u_maxIterations;
+
+        void main() {
+            vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+            
+            // સ્ક્રીન રેશિયો એડજસ્ટમેન્ટ
+            float ratio = u_resolution.x / u_resolution.y;
+            
+            // કો-ઓર્ડિનેટ મેપિંગ
+            vec2 c = u_zoomCenter + (uv - 0.5) * vec2(ratio, 1.0) * u_zoomSize;
+            
+            vec2 z = vec2(0.0);
+            int iterations = 0;
+            
+            // મેન્ડલબ્રોટ ફોર્મ્યુલા: Z = Z² + C
+            // આ લૂપ નક્કી કરે છે કે પોઈન્ટ અનંત તરફ જાય છે કે નહીં
+            for (int i = 0; i < 500; i++) {
+                if (i >= u_maxIterations) break;
+                
+                // Complex Number Square: (x+yi)² = (x²-y²) + (2xy)i
+                float x = (z.x * z.x - z.y * z.y) + c.x;
+                float y = (2.0 * z.x * z.y) + c.y;
+                
+                if ((x * x + y * y) > 4.0) break; // Escape radius
+                
+                z.x = x;
+                z.y = y;
+                iterations++;
+            }
+
+            // કલરિંગ (સાઈકેડેલિક ઈફેક્ટ)
+            if (iterations == u_maxIterations) {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); // અંદરનો ભાગ કાળો (શાંતિ)
+            } else {
+                float t = float(iterations) / float(u_maxIterations);
+                
+                // કલર પેલેટ (R, G, B) - ગણિત આધારિત
+                float r = 0.5 + 0.5 * cos(3.0 + t * 10.0);
+                float g = 0.5 + 0.5 * cos(3.5 + t * 10.0);
+                float b = 0.5 + 0.5 * cos(4.0 + t * 10.0);
+                
+                gl_FragColor = vec4(r, g, b, 1.0);
+            }
+        }
+    </script>
 
     <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const scanLine = document.getElementById('scan-line');
-        const btn = document.getElementById('btn');
+        const canvas = document.getElementById("glcanvas");
+        const gl = canvas.getContext("webgl");
 
-        let isScanning = false;
-        let scanY = 0; // સ્કેનિંગ લાઈનની પોઝિશન
-        let speed = 2; // સ્કેનિંગ સ્પીડ
+        if (!gl) {
+            alert("WebGL not supported");
+        }
 
-        async function setupCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'user', width: 1280, height: 720 }, // Front camera
-                audio: false
-            });
-            video.srcObject = stream;
-            await video.play();
+        // શેડર કમ્પાઈલ ફંક્શન
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error(gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
 
+        const vsSource = document.getElementById("vs").text;
+        const fsSource = document.getElementById("fs").text;
+
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, vsSource);
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        // બફર સેટઅપ (આખી સ્ક્રીન કવર કરવા માટે બે ત્રિકોણ)
+        const positionLocation = gl.getAttribLocation(program, "position");
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            -1.0, -1.0,
+             1.0, -1.0,
+            -1.0,  1.0,
+            -1.0,  1.0,
+             1.0, -1.0,
+             1.0,  1.0]), gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(positionLocation);
+        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+        // યુનિફોર્મ્સ (Variables sending to GPU)
+        const u_resolution = gl.getUniformLocation(program, "u_resolution");
+        const u_zoomCenter = gl.getUniformLocation(program, "u_zoomCenter");
+        const u_zoomSize = gl.getUniformLocation(program, "u_zoomSize");
+        const u_maxIterations = gl.getUniformLocation(program, "u_maxIterations");
+
+        // પ્રારંભિક સ્થિતિ
+        let zoomCenter = { x: -0.75, y: 0.0 };
+        let targetZoomCenter = { x: -0.75, y: 0.0 };
+        let zoomSize = 3.0;
+        let targetZoomSize = 3.0;
+        let maxIterations = 200;
+
+        function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // રેન્ડર લૂપ
+        function render() {
+            // સ્મૂધ એનિમેશન (Lerp)
+            zoomSize += (targetZoomSize - zoomSize) * 0.1;
+            zoomCenter.x += (targetZoomCenter.x - zoomCenter.x) * 0.1;
+            zoomCenter.y += (targetZoomCenter.y - zoomCenter.y) * 0.1;
+
+            // જેમ જેમ ઝૂમ થાય તેમ ડિટેલ (Iterations) વધારવી પડે
+            // જેથી પિક્સેલ ફાટે નહીં
+            maxIterations = Math.floor(200 + Math.log(3.0 / zoomSize) * 50);
+
+            gl.uniform2f(u_resolution, canvas.width, canvas.height);
+            gl.uniform2f(u_zoomCenter, zoomCenter.x, zoomCenter.y);
+            gl.uniform1f(u_zoomSize, zoomSize);
+            gl.uniform1i(u_maxIterations, maxIterations);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            requestAnimationFrame(render);
+        }
+        render();
+
+        // --- કંટ્રોલ્સ (Touch & Mouse) ---
+        
+        // ઝૂમ ફંક્શન
+        function handleZoom(x, y, delta) {
+            const zoomFactor = delta > 0 ? 1.1 : 0.9;
+            
+            // માઉસ પોઝિશન મુજબ ઝૂમ કરવું (ગણિત)
+            const ratio = canvas.width / canvas.height;
+            const uvX = (x / canvas.width - 0.5) * ratio * zoomSize;
+            const uvY = (1.0 - y / canvas.height - 0.5) * zoomSize; // WebGL Y is inverted
+            
+            targetZoomCenter.x += uvX * (1 - 1/zoomFactor);
+            targetZoomCenter.y += uvY * (1 - 1/zoomFactor);
+            
+            targetZoomSize *= zoomFactor;
         }
 
-        btn.addEventListener('click', () => {
-            if (isScanning) return;
-            
-            // રીસેટ કરો
-            isScanning = true;
-            scanY = 0;
-            btn.style.display = 'none';
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            scanLoop();
+        // માઉસ ઇવેન્ટ્સ
+        window.addEventListener('wheel', (e) => {
+            handleZoom(e.clientX, e.clientY, Math.sign(e.deltaY));
         });
 
-        function scanLoop() {
-            if (!isScanning) return;
-
-            // કેન્વાસ અને વિડીયોનું મેપિંગ (Aspect Ratio સાચવવા)
-            const vRatio = video.videoWidth / video.videoHeight;
-            const cRatio = canvas.width / canvas.height;
-            let sWidth, sHeight, sx, sy;
-
-            if (cRatio > vRatio) {
-                sWidth = video.videoWidth;
-                sHeight = video.videoWidth / cRatio;
-                sx = 0;
-                sy = (video.videoHeight - sHeight) / 2;
-            } else {
-                sWidth = video.videoHeight * cRatio;
-                sHeight = video.videoHeight;
-                sx = (video.videoWidth - sWidth) / 2;
-                sy = 0;
+        // ટચ ઇવેન્ટ્સ (Pinch to Zoom)
+        let initialPinchDistance = null;
+        
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                initialPinchDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
             }
+        });
 
-            // ગણિત: લાઈવ વિડીયોમાંથી માત્ર 1 પિક્સેલની પટ્ટી કાપો
-            // અને તેને કેન્વાસ પર "scanY" પોઝિશન પર ચોંટાડો
-            
-            // Source (Video)
-            // Destination (Canvas)
-            
-            // આપણે વિડીયોના સેન્ટર પાર્ટમાંથી ડેટા લઈએ છીએ
-            // આ લાઈન બહુ મહત્વની છે: આપણે વિડીયોની 'વચ્ચેની' લાઈન નથી લેતા, 
-            // પણ સ્કેનર જ્યાં પહોંચ્યું છે તે લાઈન લઈએ છીએ.
-            
-            // વિડીયો યામમાં કન્વર્ટ કરો
-            const videoScanY = sy + (scanY / canvas.height) * sHeight;
+        canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && initialPinchDistance) {
+                const currentDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                
+                // સેન્ટર પોઈન્ટ શોધો
+                const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
 
-            ctx.drawImage(
-                video, 
-                sx, videoScanY, sWidth, speed, // Source Rect
-                0, scanY, canvas.width, speed // Dest Rect
-            );
-
-            // લાઈન ખસેડો
-            scanY += speed;
-            scanLine.style.top = scanY + 'px';
-
-            if (scanY < canvas.height) {
-                requestAnimationFrame(scanLoop);
-            } else {
-                isScanning = false;
-                btn.style.display = 'block';
-                btn.innerText = "AGAIN";
-                scanLine.style.display = 'none';
+                const delta = initialPinchDistance > currentDistance ? 1 : -1;
+                handleZoom(cx, cy, delta * 0.5); // ધીમું ઝૂમ
+                
+                initialPinchDistance = currentDistance;
             }
-        }
-
-        setupCamera();
+            e.preventDefault(); // સ્ક્રોલ રોકવા
+        }, { passive: false });
 
     </script>
 </body>
