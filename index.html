@@ -3,119 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dev's Matrix Vision</title>
+    <title>Dev's Divine Yantra</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
         
-        #canvas { 
-            display: block; 
-            width: 100vw; height: 100vh; 
-            transform: scaleX(-1); /* મિરર ઈફેક્ટ */
+        #container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        
+        canvas { 
+            /* ગોળ આકારમાં યંત્ર દેખાશે */
+            border-radius: 50%; 
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.3);
+            max-width: 100%; max-height: 100%;
         }
-        
+
         #video { display: none; }
+
+        .controls {
+            position: absolute; bottom: 30px; width: 100%; text-align: center;
+            z-index: 10;
+        }
+
+        input[type=range] { width: 60%; accent-color: gold; }
         
-        #ui {
-            position: absolute; top: 10px; left: 10px;
-            color: #0F0; font-size: 12px;
-            background: rgba(0, 20, 0, 0.8);
-            padding: 10px; border: 1px solid #0F0;
-            pointer-events: none;
+        h2 {
+            position: absolute; top: 10px; width: 100%; text-align: center;
+            color: gold; text-transform: uppercase; letter-spacing: 5px;
+            font-size: 14px; text-shadow: 0 0 10px gold; pointer-events: none;
         }
     </style>
 </head>
 <body>
 
-    <div id="ui">
-        SYSTEM: MATRIX CORE<br>
-        RESOLUTION: HIGH<br>
-        MODE: ASCII RENDER
+    <h2>The Living Yantra</h2>
+
+    <div id="container">
+        <video id="video" playsinline autoplay muted></video>
+        <canvas id="canvas"></canvas>
     </div>
 
-    <video id="video" playsinline></video>
-    <canvas id="canvas"></canvas>
+    <div class="controls">
+        <div style="color: gold; margin-bottom: 5px;">SYMMETRY: <span id="sym-val">8</span></div>
+        <input type="range" id="slider" min="4" max="24" step="2" value="8">
+    </div>
 
     <script>
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const slider = document.getElementById('slider');
+        const symVal = document.getElementById('sym-val');
 
-        // કેરેક્ટર્સ: ઘાટા થી આછા (Dark to Light)
-        // આ સ્ટ્રિંગ નક્કી કરે છે કે કયા પિક્સેલ માટે કયો અક્ષર વાપરવો
-        const density = "Ñ@#W$9876543210?!abc;:+=-,._ ";
-        // const density = "SIMPLE_TEXT_ "; // તમે આ બદલી શકો
+        let symmetry = 8; // કેટલા ભાગમાં વહેંચવું
 
-        async function setupCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 640, height: 480 },
-                audio: false
-            });
-            video.srcObject = stream;
-            await video.play();
-        }
-
-        function render() {
-            // કેન્વાસને વિડીયોની સાઈઝ આપો
-            const w = canvas.width = window.innerWidth;
-            const h = canvas.height = window.innerHeight;
-            
-            // આપણે પરફોર્મન્સ માટે નાનું ડ્રોઈંગ બનાવીશું અને તેને ટેક્સ્ટમાં ફેરવીશું
-            // ગણતરી: સ્ક્રીન પર કેટલા અક્ષરો સમાશે?
-            const fontSize = 12;
-            const cols = Math.floor(w / fontSize);
-            const rows = Math.floor(h / fontSize);
-
-            // 1. મેમરીમાં એક નાની ઈમેજ દોરો (Hidden Processing)
-            const hiddenCanvas = document.createElement('canvas');
-            hiddenCanvas.width = cols;
-            hiddenCanvas.height = rows;
-            const hiddenCtx = hiddenCanvas.getContext('2d');
-            
-            // વિડીયોને નાનો કરીને ડ્રો કરો (Downsampling)
-            hiddenCtx.drawImage(video, 0, 0, cols, rows);
-            
-            // 2. પિક્સેલ ડેટા વાંચો
-            const frame = hiddenCtx.getImageData(0, 0, cols, rows);
-            const data = frame.data;
-
-            // 3. મુખ્ય કેન્વાસ પર ટેક્સ્ટ લખો
-            ctx.fillStyle = "black";
-            ctx.fillRect(0, 0, w, h); // સ્ક્રીન સાફ કરો
-
-            ctx.fillStyle = "#0F0"; // Matrix Green Color
-            ctx.font = fontSize + "px monospace";
-
-            // દરેક પિક્સેલ માટે લૂપ ફેરવો
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                
-                // તેજસ્વીતા (Brightness) શોધો
-                const avg = (r + g + b) / 3;
-                
-                // Brightness (0-255) ને Character String (0-length) સાથે મેપ કરો
-                const len = density.length;
-                const charIndex = Math.floor((avg / 255) * len);
-                
-                const char = density.charAt(charIndex);
-
-                // ટેક્સ્ટની પોઝિશન શોધો
-                // i/4 કારણ કે ડેટા એરેમાં 4 વેલ્યુ (RGBA) હોય છે
-                const pixelIndex = i / 4;
-                const x = (pixelIndex % cols) * fontSize;
-                const y = Math.floor(pixelIndex / cols) * fontSize;
-
-                ctx.fillText(char, x, y);
-            }
-
-            requestAnimationFrame(render);
-        }
-
-        setupCamera().then(() => {
-            render();
+        slider.addEventListener('input', (e) => {
+            symmetry = parseInt(e.target.value);
+            symVal.innerText = symmetry;
         });
 
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' },
+                    audio: false
+                });
+                video.srcObject = stream;
+                video.play();
+                draw();
+            } catch (err) {
+                alert("Camera access needed for the magic!");
+            }
+        }
+
+        function draw() {
+            // કેન્વાસને વિન્ડો સાઈઝનું રાખો
+            const size = Math.min(window.innerWidth, window.innerHeight);
+            canvas.width = size;
+            canvas.height = size;
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            
+            // યંત્રનું ગણિત (Kaleidoscope Logic)
+            const angle = (Math.PI * 2) / symmetry;
+
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, w, h);
+            
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            for (let i = 0; i < symmetry; i++) {
+                ctx.save();
+                ctx.rotate(i * angle);
+
+                // મિરર ઈફેક્ટ (એક સીધું, એક ઊંધું - જેથી પેટર્ન જોડાય)
+                if (i % 2 !== 0) {
+                    ctx.scale(1, -1);
+                }
+
+                // ક્લિપિંગ (ત્રિકોણ કાપવો)
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, cx, -angle / 2 - 0.01, angle / 2 + 0.01); // સહેજ ઓવરલેપ જેથી લાઈન ન દેખાય
+                ctx.closePath();
+                ctx.clip();
+
+                // વિડીયો ડ્રો કરો
+                // અહીં આપણે વિડીયોનો થોડો જ ભાગ લઈએ છીએ અને તેને ફેરવીએ છીએ
+                const videoSize = Math.min(video.videoWidth, video.videoHeight);
+                const sx = (video.videoWidth - videoSize) / 2;
+                const sy = (video.videoHeight - videoSize) / 2;
+                
+                // રોટેશન એડજસ્ટમેન્ટ જેથી ઈમેજ સીધી લાગે
+                ctx.rotate(Math.PI / 2); 
+                
+                // ડ્રો કરો
+                ctx.drawImage(video, sx, sy, videoSize, videoSize, -cx, -cx, w, w);
+                
+                ctx.restore();
+            }
+            ctx.restore();
+
+            // ગોલ્ડન રિંગ બોર્ડર
+            ctx.beginPath();
+            ctx.arc(cx, cy, cx - 5, 0, Math.PI * 2);
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = '#DAA520'; // GoldenRod
+            ctx.stroke();
+
+            requestAnimationFrame(draw);
+        }
+
+        startCamera();
     </script>
 </body>
 </html>
