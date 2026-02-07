@@ -3,183 +3,259 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dev's Genesis: Artificial Life</title>
+    <title>Dev's Cosmos Engine</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
         canvas { display: block; }
         
-        #gui {
-            position: absolute; top: 10px; right: 10px;
-            background: rgba(0, 0, 0, 0.8); padding: 15px;
-            border: 1px solid #444; color: #fff; width: 250px;
-            border-radius: 8px;
+        #ui {
+            position: absolute; top: 10px; left: 10px; color: white; pointer-events: none;
+            background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px;
+        }
+        
+        #controls {
+            position: absolute; bottom: 20px; width: 100%; text-align: center;
         }
         
         button {
-            width: 100%; padding: 10px; margin-top: 10px;
-            background: #222; color: #0f0; border: 1px solid #0f0;
-            cursor: pointer; font-weight: bold;
+            padding: 10px 20px; font-size: 16px; background: #fff; border: none; 
+            border-radius: 20px; cursor: pointer; font-weight: bold; margin: 0 5px;
         }
-        button:hover { background: #0f0; color: #000; }
-        
-        .stat { font-size: 12px; color: #aaa; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
-    <div id="gui">
-        <h3 style="margin:0 0 10px 0; color:#0f0;">GENESIS ENGINE</h3>
-        <div class="stat">ATOMS: <span id="atom-count">0</span></div>
-        <div class="stat">FPS: <span id="fps">0</span></div>
-        <div style="font-size:10px; color:#888; margin-top:5px;">
-            નિયમ: કલર એકબીજાને આકર્ષે કે અપાકર્ષે છે. તેમાંથી "જીવન" આપોઆપ બનશે.
-        </div>
-        <button onclick="randomizeRules()">RESET UNIVERSE</button>
+    <div id="ui">
+        <h3>COSMOS ENGINE</h3>
+        <p>1. Drag & Release to launch Planets.<br>
+           2. Tap to create a Static Sun.<br>
+           3. Watch Gravity work.</p>
+        <div>Objects: <span id="count">0</span></div>
     </div>
 
-    <canvas id="life"></canvas>
+    <canvas id="space"></canvas>
+
+    <div id="controls">
+        <button onclick="reset()">Clear Space</button>
+        <button onclick="spawnSolarSystem()">Auto Solar System</button>
+    </div>
 
     <script>
-        const canvas = document.getElementById('life');
+        const canvas = document.getElementById('space');
         const ctx = canvas.getContext('2d');
-        
-        // સેટિંગ્સ
-        const atomSize = 2; // અણુનું કદ
-        let atoms = [];
-        
-        // બ્રહ્માંડના રંગો (તત્વો)
-        const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#00FFFF', '#FF00FF'];
-        // નિયમોનો મેટ્રિક્સ (કોણ કોને આકર્ષે છે)
-        let rules = []; 
+        const countDisplay = document.getElementById('count');
 
-        // કેન્વાસ સાઈઝ
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // અણુ ક્લાસ
-        const createAtom = (x, y, colorIdx) => {
-            return {
-                x: x, y: y,
-                vx: 0, vy: 0, // વેગ (Velocity)
-                color: colorIdx
-            };
-        };
+        let bodies = [];
+        const G = 0.5; // ગુરુત્વાકર્ષણ બળ (Gravity Constant)
 
-        // રેન્ડમ પોઝિશન
-        const randomX = () => Math.random() * canvas.width;
-        const randomY = () => Math.random() * canvas.height;
-
-        // બ્રહ્માંડ બનાવો
-        const createUniverse = (numberPerColor) => {
-            atoms = [];
-            for (let c = 0; c < colors.length; c++) {
-                for (let i = 0; i < numberPerColor; i++) {
-                    atoms.push(createAtom(randomX(), randomY(), c));
-                }
+        class Body {
+            constructor(x, y, vx, vy, mass, color, isStatic = false) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.mass = mass;
+                this.radius = Math.sqrt(mass) * 2; // કદ દળના પ્રમાણમાં
+                this.color = color;
+                this.isStatic = isStatic; // સૂર્ય હલે નહીં
+                this.path = []; // પૂંછડી (Trail)
             }
-            document.getElementById('atom-count').innerText = atoms.length;
-        };
 
-        // નિયમો બનાવો (ગુરુત્વાકર્ષણ/અપાકર્ષણ)
-        const randomizeRules = () => {
-            rules = [];
-            for (let i = 0; i < colors.length; i++) {
-                rules[i] = [];
-                for (let j = 0; j < colors.length; j++) {
-                    // -1 (Strong Repel) થી +1 (Strong Attract)
-                    rules[i][j] = (Math.random() * 2) - 1;
-                }
-            }
-            // ફરીથી શરૂ કરો
-            createUniverse(300); // દરેક કલરના ૩૦૦ અણુ (કુલ ૧૮૦૦)
-        };
+            update() {
+                if (this.isStatic) return;
 
-        // ભૌતિક વિજ્ઞાનનું હૃદય (Physics Engine)
-        const applyRules = () => {
-            for (let i = 0; i < atoms.length; i++) {
-                let fx = 0;
-                let fy = 0;
-                const a = atoms[i];
+                // ગ્રેવિટીની ગણતરી (દરેક પદાર્થ બીજા પદાર્થને ખેંચે છે)
+                for (let other of bodies) {
+                    if (other === this) continue;
 
-                for (let j = 0; j < atoms.length; j++) {
-                    if (i === j) continue; // પોતાની સાથે નહીં
-                    
-                    const b = atoms[j];
-                    
-                    // નિયમ: a કલર b કલર સાથે કેવી વર્તણૂક કરશે?
-                    const g = rules[a.color][b.color]; 
-                    
-                    // જો g શૂન્યની નજીક હોય, તો ગણતરી છોડી દો (ઓપ્ટિમાઈઝેશન)
-                    if (Math.abs(g) < 0.05) continue;
+                    let dx = other.x - this.x;
+                    let dy = other.y - this.y;
+                    let distSq = dx*dx + dy*dy;
+                    let dist = Math.sqrt(distSq);
 
-                    let dx = a.x - b.x;
-                    let dy = a.y - b.y;
-                    
-                    // Infinite World Logic (સ્ક્રીનની બીજી બાજુથી નીકળે)
-                    if (dx > canvas.width * 0.5) dx -= canvas.width;
-                    if (dx < -canvas.width * 0.5) dx += canvas.width;
-                    if (dy > canvas.height * 0.5) dy -= canvas.height;
-                    if (dy < -canvas.height * 0.5) dy += canvas.height;
-
-                    const d = Math.sqrt(dx*dx + dy*dy);
-
-                    if (d > 0 && d < 80) { // 80 પિક્સેલની ત્રિજ્યામાં જ અસર કરે
-                        // બળ (Force) ફોર્મ્યુલા
-                        // F = G * 1/d
-                        const F = (g * 1) / d;
-                        fx += (F * dx);
-                        fy += (F * dy);
+                    // Collision (જો ભટકાય તો મર્જ થઈ જાય)
+                    if (dist < this.radius + other.radius) {
+                        // સરળતા ખાતર આપણે અથડામણનું લોજિક અત્યારે નથી લખતા,
+                        // પણ ગુરુત્વાકર્ષણ બહુ વધી ન જાય તે માટે લિમિટ રાખીએ
+                        distSq = (this.radius + other.radius) * (this.radius + other.radius); 
+                        dist = Math.sqrt(distSq);
                     }
+
+                    // Newton's Law: F = G * (m1*m2) / r^2
+                    let force = G * ((this.mass * other.mass) / distSq);
+                    
+                    // Force Components
+                    let ax = (force * dx / dist) / this.mass;
+                    let ay = (force * dy / dist) / this.mass;
+
+                    this.vx += ax;
+                    this.vy += ay;
                 }
 
-                // વેગ અપડેટ (Viscosity/Friction સાથે)
-                a.vx = (a.vx + fx) * 0.5;
-                a.vy = (a.vy + fy) * 0.5;
+                this.x += this.vx;
+                this.y += this.vy;
 
-                // પોઝિશન અપડેટ
-                a.x += a.vx;
-                a.y += a.vy;
-
-                // બાઉન્ડ્રી (દીવાલ સાથે અથડાઈને પાછા આવે)
-                if (a.x <= 0 || a.x >= canvas.width) a.vx *= -1;
-                if (a.y <= 0 || a.y >= canvas.height) a.vy *= -1;
-                
-                // ખાતરી કરો કે બહાર ન જાય
-                if (a.x < 0) a.x = 0;
-                if (a.x > canvas.width) a.x = canvas.width;
-                if (a.y < 0) a.y = 0;
-                if (a.y > canvas.height) a.y = canvas.height;
+                // Trail Logic (પૂંછડી)
+                if (this.path.length > 50) this.path.shift();
+                if (frameCount % 3 === 0) this.path.push({x: this.x, y: this.y});
             }
-        };
 
-        // રેન્ડર લૂપ
-        let lastTime = 0;
-        const update = (time) => {
-            // FPS ગણતરી
-            const fps = Math.round(1000 / (time - lastTime));
-            lastTime = time;
-            if (time % 10 === 0) document.getElementById('fps').innerText = fps; // ક્યારેક અપડેટ કરો
+            draw() {
+                // પૂંછડી દોરો
+                ctx.beginPath();
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 1;
+                for (let p of this.path) ctx.lineTo(p.x, p.y);
+                ctx.stroke();
 
-            // ગણતરી
-            applyRules();
+                // ગ્રહ દોરો
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                // ચમક (Glow)
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
 
-            // ડ્રોઈંગ
-            ctx.fillStyle = "black";
+        // ઈનપુટ હેન્ડલિંગ (Sling shot mechanism)
+        let isDragging = false;
+        let dragStart = {x: 0, y: 0};
+        let dragCurrent = {x: 0, y: 0};
+
+        canvas.addEventListener('mousedown', e => {
+            isDragging = true;
+            dragStart = {x: e.clientX, y: e.clientY};
+            dragCurrent = {x: e.clientX, y: e.clientY};
+        });
+        
+        canvas.addEventListener('mousemove', e => {
+            if (isDragging) dragCurrent = {x: e.clientX, y: e.clientY};
+        });
+
+        canvas.addEventListener('mouseup', e => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            const dx = dragStart.x - e.clientX;
+            const dy = dragStart.y - e.clientY;
+            
+            // જો બહુ ઓછું ડ્રેગ કર્યું હોય તો "સૂર્ય" (Static Star) બનાવો
+            if (Math.abs(dx) < 5 && Math.abs(dy) < 5) {
+                bodies.push(new Body(e.clientX, e.clientY, 0, 0, 500, '#FFD700', true));
+            } else {
+                // નહિતર "ગ્રહ" (Planet) ફેંકો
+                // વેગ (Velocity) ડ્રેગના અંતર પર આધારિત
+                const velocityX = dx * 0.05;
+                const velocityY = dy * 0.05;
+                const mass = Math.random() * 10 + 5; // રેન્ડમ વજન
+                const color = `hsl(${Math.random()*360}, 100%, 50%)`;
+                
+                bodies.push(new Body(dragStart.x, dragStart.y, velocityX, velocityY, mass, color, false));
+            }
+            countDisplay.innerText = bodies.length;
+        });
+
+        // ટચ સ્ક્રીન માટે
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            isDragging = true;
+            dragStart = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+            dragCurrent = {...dragStart};
+        });
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            if (isDragging) dragCurrent = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+        });
+        canvas.addEventListener('touchend', e => {
+            e.preventDefault();
+            if (!isDragging) return;
+            isDragging = false;
+            const dx = dragStart.x - dragCurrent.x;
+            const dy = dragStart.y - dragCurrent.y;
+            
+            if (Math.abs(dx) < 5 && Math.abs(dy) < 5) {
+                bodies.push(new Body(dragStart.x, dragStart.y, 0, 0, 500, '#FFD700', true));
+            } else {
+                const vx = dx * 0.05;
+                const vy = dy * 0.05;
+                const mass = Math.random() * 10 + 5;
+                const color = `hsl(${Math.random()*360}, 100%, 50%)`;
+                bodies.push(new Body(dragStart.x, dragStart.y, vx, vy, mass, color, false));
+            }
+            countDisplay.innerText = bodies.length;
+        });
+
+        let frameCount = 0;
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // પૂંછડી ફેડ ઈફેક્ટ
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            for (let i = 0; i < atoms.length; i++) {
-                const a = atoms[i];
-                ctx.fillStyle = colors[a.color];
-                ctx.fillRect(a.x, a.y, atomSize, atomSize);
+            // એમિંગ લાઈન (Aiming Line)
+            if (isDragging) {
+                ctx.beginPath();
+                ctx.moveTo(dragStart.x, dragStart.y);
+                ctx.lineTo(dragCurrent.x, dragCurrent.y);
+                ctx.strokeStyle = 'white';
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                ctx.beginPath();
+                ctx.arc(dragStart.x, dragStart.y, 10, 0, Math.PI*2);
+                ctx.strokeStyle = 'white';
+                ctx.stroke();
             }
 
-            requestAnimationFrame(update);
-        };
+            for (let body of bodies) {
+                body.update();
+                body.draw();
+            }
+            frameCount++;
+            requestAnimationFrame(animate);
+        }
 
-        // શરૂઆત
-        randomizeRules();
-        requestAnimationFrame(update);
+        function reset() {
+            bodies = [];
+            countDisplay.innerText = 0;
+        }
 
+        function spawnSolarSystem() {
+            reset();
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            
+            // સૂર્ય
+            bodies.push(new Body(cx, cy, 0, 0, 1000, '#FFD700', true));
+            
+            // પૃથ્વી જેવો ગ્રહ
+            // વેગ (Velocity) સેટ કરવો પડે જેથી તે ઓર્બિટ કરે
+            // v = sqrt(G * M / r)
+            let r = 200;
+            let v = Math.sqrt(G * 1000 / r); 
+            bodies.push(new Body(cx + r, cy, 0, v, 20, '#0099FF', false));
+
+            // મંગળ જેવો ગ્રહ
+            r = 300;
+            v = Math.sqrt(G * 1000 / r);
+            bodies.push(new Body(cx + r, cy, 0, -v, 15, '#FF3333', false));
+            
+            // ગુરુ જેવો ગ્રહ
+            r = 120;
+            v = Math.sqrt(G * 1000 / r);
+            bodies.push(new Body(cx - r, cy, 0, v, 50, '#FF9900', false));
+            
+            countDisplay.innerText = bodies.length;
+        }
+
+        animate();
     </script>
 </body>
 </html>
